@@ -26,6 +26,10 @@
 	- current iteration supports single buttons for carousel
 		- added buttons is a straight forward change on the JSON end
 
+	- TODO: proper text templating library; simple python string formatting
+	doesn't work if dictionaries are being written
+		- possibly write a string templating wrapper function
+
 	Example JSON
 	------------
 	- database configuration
@@ -101,6 +105,8 @@ import os
 
 from pymongo import MongoClient
 
+import pdb
+
 
 class Engine: 
 	"""
@@ -137,7 +143,7 @@ class Engine:
 		self.db = self.client[user_id]
 
 		# bot application config
-		self.application_logic = base_application_logic()
+		self.application_logic = self.base_application_logic()
 
 
 	def database_config(self):
@@ -161,58 +167,61 @@ class Engine:
 			Build the base for the bot's application logic. Handles app
 			instantiation, verification, and basic message sending.
 
-			For now we try our best to follow PEP8 standards.
+			For now we try our best to follow PEP8 standards. Weird indentation
+			for strings is to allow for 
 		"""
-		base_logic = """
-		import os
-		import json
+		base_logic = \
+"""
+import os
+import json
 
-		import requests
-		from pymongo import MongoClient
-		from flask import Flask
+import requests
+from pymongo import MongoClient
+from flask import Flask
 
-		from content import *
+from content import *
 
-		app = Flask(__name__)
+app = Flask(__name__)
 
-		# mongo constants
-		client = MongoClient({mongo_ip}, {mongo_port})
-		db = client[{user_id}]
+# mongo constants
+client = MongoClient({mongo_ip}, {mongo_port})
+db = client[{user_id}]
 
-		# message sending helper
-		def send_message(recipient_id, message_data):
-			params = {
-				"access_token": {page_access_token}
-			}
+# message sending helper
+def send_message(recipient_id, message_data):
+	params = {
+		"access_token": {page_access_token}
+	}
 
-			headers = {
-				"Content-Type": "application/json"
-			}
+	headers = {
+		"Content-Type": 'application/json'
+	}
 
-			data = json.dumps({
-				"recipient": {
-					"id": recipient_id
-				}, "message": message_data
-			})
+	data = json.dumps({
+		"recipient": {
+			"id": recipient_id
+		}, 
+		"message": message_data
+	})
 
-			r = requests.post("https://graph.facebook.com/v2.6/me/messages",
-							  params=params, headers=headers, data=data)
+	r = requests.post("https://graph.facebook.com/v2.6/me/messages",
+					  params=params, headers=headers, data=data)
 
-		@app.route("/", methods=["GET"])
-		def verify():
-			if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
-				if not request.args.get("hub.verify_token") == {verify_token}:
-					return "Verificiation token mismatch", 403
-				return request.args["hub.challenge"], 200
+@app.route("/", methods=["GET"])
+def verify():
+	if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
+		if not request.args.get("hub.verify_token") == {verify_token}:
+			return "Verificiation token mismatch", 403
+		return request.args["hub.challenge"], 200
 
-			return "Application Verified!", 200
+	return "Application Verified!", 200
 
-		@app.route("/", methods=["POST"])
-		{webhook_logic}
+@app.route("/", methods=["POST"])
+{webhook_logic}
 
-		if __name__ == "__main__":
-			app.run(host="0.0.0.0", port=5000, debug=True)
-		"""
+if __name__ == "__main__":
+	app.run(host="0.0.0.0", port=5000, debug=True)
+"""
 
 		return base_logic
 
@@ -233,7 +242,6 @@ class Engine:
 			Primary method for bot content creation. Outputs content to separate
 			file.
 		"""
-
 		# temporary standard image url
 		image_url = "http://messengerdemo.parseapp.com/img/rift.png"
 
@@ -248,7 +256,7 @@ class Engine:
 		base_content = """
 		{carousels}
 
-		{message_lists}
+		{messages}
 		"""
 
 		carousel_base = """
@@ -293,6 +301,31 @@ class Engine:
 			carousel_container.append(
 				carousel_base.format(name=name, carousel_elements=car_elems))
 
+		message_base = """
+		{name} = {
+			"text": {message_text}
+		}
+		"""
+
+		message_list_container = []
+
+		for name, data in message_lists:
+			# we keep message variable names as <title.index>
+			for idx, msg in enumerate(data["messages"]):
+				title = "%s_%s" % (name, idx)
+
+				message_list_container.append(
+					message_base.format(name=title, 
+										message_text=msg["message"]))
+
+		content = base_content.format(
+			carousels="\n".join(carousel_container),
+			messages="\n".join(message_list_container))
+
+		# write content to file
+		with open("content.py", "w") as file:
+			file.write(content)
+
 		return True
 
 	def process(self):
@@ -304,6 +337,8 @@ class Engine:
 
 		self.database_config()
 
+		self.content_creation()
+
 		return True
 
 
@@ -312,6 +347,7 @@ if __name__ == '__main__':
 
 	test_data = {
 		"page_access_token": os.environ["PAGE_ACCESS_TOKEN"],
+		"verify_token": os.environ["VERIFY_TOKEN"],
 		"database_configuration" : {
 			"collections" : ["user", "transactions"]
 		},
@@ -334,7 +370,7 @@ if __name__ == '__main__':
 				"messages": [
 					{
 						"message": "Please enter your age.",
-						"expected_input": int,
+						"expected_input": "integer",
 						"storage": "user.age"
 					}
 				],
@@ -353,7 +389,7 @@ if __name__ == '__main__':
 				"messages": [
 					{
 						"message": "How much did you earn today?",
-						"expected_input": float,
+						"expected_input": "float",
 						"storage": "transactions.amount"
 					}
 				]
@@ -363,7 +399,7 @@ if __name__ == '__main__':
 
 	json_data = json.dumps(test_data)
 
-	bot_engine = Engine("sunnithan95", json_data["page_access_token"], 
-						json_data)
+	bot_engine = Engine("sunnithan95", test_data["page_access_token"], 
+						test_data["verify_token"], json_data)
 
-	bot_engine.process()
+	print bot_engine.process()
