@@ -168,7 +168,7 @@ class Engine:
             instantiation, verification, and basic message sending.
 
             For now we try our best to follow PEP8 standards. Weird indentation
-            for strings is to allow for 
+            for strings is to allow for proper file writing.
         """
         base_logic = \
 """
