@@ -1,8 +1,8 @@
 """
     Engine for parsing JSON and generating control flow for chatbot webhook. 
 
-    Thoughts
-    --------
+    Thoughts/Notes
+    --------------
     - how do we correctly store chat-user responses; do we ask the engine-user
     to define storage elements (e.g. db collections, objects)?
     
@@ -28,7 +28,7 @@
 
     - TODO: proper text templating library; simple python string formatting
     doesn't work if dictionaries are being written
-        - possibly write a string templating wrapper function
+        - possibly write a string templating wrapper function: DONE
 
     Example JSON
     ------------
@@ -107,6 +107,43 @@ from pymongo import MongoClient
 
 import pdb
 
+def format_string(string_template, **kwargs):
+    """
+        Helper method to perform custom string templating. Allows the inclusion
+        of dictionaries in strings.
+
+        Parameters
+        ----------
+        string_template : {str}
+            main string to be reformatted using the new templating structure.
+
+        kwargs : {dict}
+            keyword arguments corresponding to template placeholders
+    """
+    template_char = '$'
+
+    # identify all occurences of templates
+    idx = 0
+
+    templates = []
+
+    while idx < len(string_template):
+        start_idx = string_template[idx:].find(template_char)
+        
+        if start_idx == -1:
+            # we've found all occurences of the templates
+            break
+
+        end_idx = \
+            string_template[start_idx+1:].find(template_char) + start_idx + 1 
+        templates.append(string_template[start_idx:end_idx+1])
+        idx = end_idx+1
+
+    for tpl in templates:
+        string_template = string_template.replace(tpl, kwargs[tpl[1:-1]])
+
+    return string_template
+
 
 class Engine: 
     """
@@ -184,13 +221,13 @@ from content import *
 app = Flask(__name__)
 
 # mongo constants
-client = MongoClient({mongo_ip}, {mongo_port})
-db = client[{user_id}]
+client = MongoClient($mongo_ip$, $mongo_port$)
+db = client[$user_id$]
 
 # message sending helper
 def send_message(recipient_id, message_data):
     params = {
-        "access_token": {page_access_token}
+        "access_token": $page_access_token$
     }
 
     headers = {
@@ -210,14 +247,14 @@ def send_message(recipient_id, message_data):
 @app.route("/", methods=["GET"])
 def verify():
     if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
-        if not request.args.get("hub.verify_token") == {verify_token}:
+        if not request.args.get("hub.verify_token") == $verify_token$:
             return "Verificiation token mismatch", 403
         return request.args["hub.challenge"], 200
 
     return "Application Verified!", 200
 
 @app.route("/", methods=["POST"])
-{webhook_logic}
+$webhook_logic$
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
@@ -254,19 +291,19 @@ if __name__ == "__main__":
                          data["type"] == "message_list"]
 
         base_content = """
-        {carousels}
+        $carousels$
 
-        {messages}
+        $messages$
         """
 
         carousel_base = """
-        {name} = {
+        $name$ = {
             "attachment": {
                 "type": "template",
                 "payload": {
                     "template_type": "generic",
                     "elements": [
-                        {carousel_elements}
+                        $carousel_elements$
                     ]
                 }
             }
@@ -302,8 +339,8 @@ if __name__ == "__main__":
                 carousel_base.format(name=name, carousel_elements=car_elems))
 
         message_base = """
-        {name} = {
-            "text": {message_text}
+        $name$ = {
+            "text": $message_text$
         }
         """
 
@@ -344,7 +381,6 @@ if __name__ == "__main__":
 
 if __name__ == '__main__':
     # create dict, convert to JSON and then parse
-
     test_data = {
         "page_access_token": os.environ["PAGE_ACCESS_TOKEN"],
         "verify_token": os.environ["VERIFY_TOKEN"],
