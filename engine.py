@@ -21,6 +21,10 @@
 	with a minimal reliance on environment variables. Instead we hard-code said
 	variables and pass their values as template strings. 
 
+	- TODO: allow image url specifications for carousel options
+
+	- current iteration supports single buttons for carousel
+		- added buttons is a straight forward change on the JSON end
 
 	Example JSON
 	------------
@@ -36,7 +40,7 @@
 	{
 		"default": {
 			"type": "carousel",
-			"buttons": [
+			"options": [
 				{
 					"name": "log_income",
 					"target": "income_amt_prompt"
@@ -226,8 +230,69 @@ class Engine:
 
 	def content_creation(self):
 		"""
-			Primary method for bot content creation (i.e. separate file).
+			Primary method for bot content creation. Outputs content to separate
+			file.
 		"""
+
+		# temporary standard image url
+		image_url = "http://messengerdemo.parseapp.com/img/rift.png"
+
+		carousels = [(name, data) for name, data in 
+					 self.json_data["bot_configuration"].iteritems() if 
+					 data["type"] == "carousel"]
+
+		message_lists = [(name, data) for name, data in 
+						 self.json_data["bot_configuration"].iteritems() if
+						 data["type"] == "message_list"]
+
+		base_content = """
+		{carousels}
+
+		{message_lists}
+		"""
+
+		carousel_base = """
+		{name} = {
+			"attachment": {
+				"type": "template",
+				"payload": {
+					"template_type": "generic",
+					"elements": [
+						{carousel_elements}
+					]
+				}
+			}
+		}
+		"""
+
+		carousel_container = []
+
+		car_elems = []
+
+		for name, data in carousels:
+			for option in data["options"]:
+				# parse option specs
+				
+				title = " ".join(map(lambda x: x[:1].upper() + x[1:], 
+									 option["name"].replace("_", " ").split(" ")))
+
+				elem = {
+					"title": title,
+					"image_url": image_url,
+					"buttons": [
+						{
+							"type": "postback",
+							"title": title,
+							"payload": option["name"].replace(" ", "_").upper()
+						}
+					]
+				}
+
+				car_elems.append(elem)
+
+			carousel_container.append(
+				carousel_base.format(name=name, carousel_elements=car_elems))
+
 		return True
 
 	def process(self):
@@ -249,6 +314,50 @@ if __name__ == '__main__':
 		"page_access_token": os.environ["PAGE_ACCESS_TOKEN"],
 		"database_configuration" : {
 			"collections" : ["user", "transactions"]
+		},
+		"bot_configuration": {
+			"default": {
+				"type": "carousel",
+				"options": [
+					{
+						"name": "log_income",
+						"target": "income_amt_prompt"
+					},
+					{
+						"name": "help",
+						"target": "help_message"
+					}
+				]
+			},
+			"onboarding": {
+				"type": "message_list",
+				"messages": [
+					{
+						"message": "Please enter your age.",
+						"expected_input": int,
+						"storage": "user.age"
+					}
+				],
+				"target": "placeholder_node"
+			},
+			"help_message": {
+				"type": "message_list",
+				"messages": [
+					{
+						"message": "Generic help message."
+					}
+				]
+			},
+			"income_amount_prompt": {
+				"type": "message_list",
+				"messages": [
+					{
+						"message": "How much did you earn today?",
+						"expected_input": float,
+						"storage": "transactions.amount"
+					}
+				]
+			}
 		}
 	}
 
