@@ -134,13 +134,15 @@ def format_string(string_template, **kwargs):
             # we've found all occurences of the templates
             break
 
+        start_idx += idx
+
         end_idx = \
             string_template[start_idx+1:].find(template_char) + start_idx + 1 
         templates.append(string_template[start_idx:end_idx+1])
         idx = end_idx+1
 
     for tpl in templates:
-        string_template = string_template.replace(tpl, kwargs[tpl[1:-1]])
+        string_template = string_template.replace(tpl, str(kwargs[tpl[1:-1]]))
 
     return string_template
 
@@ -269,8 +271,9 @@ if __name__ == "__main__":
             (i.e. message, carousel, and quick reply handling).
         """
 
-        web_logic = """
-        """
+        web_logic = \
+"""
+"""
 
         return web_logic
 
@@ -290,25 +293,27 @@ if __name__ == "__main__":
                          self.json_data["bot_configuration"].iteritems() if
                          data["type"] == "message_list"]
 
-        base_content = """
-        $carousels$
+        base_content = \
+"""
+$carousels$
 
-        $messages$
-        """
+$messages$
+"""
 
-        carousel_base = """
-        $name$ = {
-            "attachment": {
-                "type": "template",
-                "payload": {
-                    "template_type": "generic",
-                    "elements": [
-                        $carousel_elements$
-                    ]
-                }
-            }
+        carousel_base = \
+"""
+$name$ = {
+    "attachment": {
+        "type": "template",
+        "payload": {
+            "template_type": "generic",
+            "elements": [
+                $carousel_elements$
+            ]
         }
-        """
+    }
+}
+"""
 
         carousel_container = []
 
@@ -336,13 +341,15 @@ if __name__ == "__main__":
                 car_elems.append(elem)
 
             carousel_container.append(
-                carousel_base.format(name=name, carousel_elements=car_elems))
+                format_string(carousel_base, name=name, 
+                              carousel_elements=car_elems))
 
-        message_base = """
-        $name$ = {
-            "text": $message_text$
-        }
-        """
+        message_base = \
+"""
+$name$ = {
+    "text": "$message_text$"
+}
+"""
 
         message_list_container = []
 
@@ -352,11 +359,12 @@ if __name__ == "__main__":
                 title = "%s_%s" % (name, idx)
 
                 message_list_container.append(
-                    message_base.format(name=title, 
-                                        message_text=msg["message"]))
+                    format_string(message_base, name=title,
+                                  message_text=msg["message"]))
 
-        content = base_content.format(
-            carousels="\n".join(carousel_container),
+
+        content = format_string(
+            base_content, carousels="\n".join(carousel_container),
             messages="\n".join(message_list_container))
 
         # write content to file
