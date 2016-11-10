@@ -30,6 +30,15 @@
     doesn't work if dictionaries are being written
         - possibly write a string templating wrapper function: DONE
 
+    - (possible constraint) only postbacks trigger message lists; message lists
+    can trigger message lists and postbacks
+
+    - each user has a unique record in the state collection
+        - we can use indices to keep track of when and where responses need
+        to be stored for messages 
+        - we need switches to know which control flow branch to follow after a
+        response (e.g. postback target or message_list target)
+
     Example JSON
     ------------
     - database configuration
@@ -227,7 +236,7 @@ client = MongoClient($mongo_ip$, $mongo_port$)
 db = client[$user_id$]
 
 # message sending helper
-def send_message(recipient_id, message_data):
+def send_message(sender_id, message_data):
     params = {
         "access_token": $page_access_token$
     }
@@ -238,7 +247,7 @@ def send_message(recipient_id, message_data):
 
     data = json.dumps({
         "recipient": {
-            "id": recipient_id
+            "id": sender_id
         }, 
         "message": message_data
     })
@@ -273,6 +282,31 @@ if __name__ == "__main__":
 
         web_logic = \
 """
+if data["object"] == "page":
+    for entry in data["entry"]:
+        for messaging_event in entry["messaging"]:
+            sender_id = messaging_event["sender"]["id"]
+
+            if messaging_event["postback"]:
+                # user submitted a postback through carousel click
+                payload = messaging_event["postback"]["payload"]
+
+                $postback_control_flow$
+
+            elif messaging_event["message"]:
+                # user submitted a message response (text)
+                message = messaging_event["message"]["text"]
+
+
+                $message_control_flow$
+
+            elif messaging_event["delivery"]:
+                # confirm delivery - currently not supported
+                pass
+
+            elif messaging_event["optin"]:
+                # confirm optin - currently not supported
+                pass
 """
 
         return web_logic
@@ -369,6 +403,7 @@ $name$ = {
             file.write(content)
 
         return True
+
 
     def process(self):
         """
