@@ -307,14 +307,12 @@ $name$ = {
         "type": "template",
         "payload": {
             "template_type": "generic",
-            "elements": [
-                $carousel_elements$
-            ]
+            "elements": $carousel_elements$
         }
     }
 }
 """
-
+   
         carousel_container = []
 
         car_elems = []
@@ -361,7 +359,6 @@ $name$ = {
                 message_list_container.append(
                     format_string(message_base, name=title,
                                   message_text=msg["message"]))
-
 
         content = format_string(
             base_content, carousels="\n".join(carousel_container),
