@@ -193,6 +193,11 @@ class Engine:
         # bot application config
         self.application_logic = self.base_application_logic()
 
+        self.carousels = [(name, data) for name, data in self.json_data
+                          if data["type"] == "carousel"]
+
+        self.message_lists = [(name, data) for name, data in self.json_data
+                              if data["type"] == "message_list"]
 
     def database_config(self):
         """
@@ -308,6 +313,21 @@ if data["object"] == "page":
                 # confirm optin - currently not supported
                 pass
 """
+        
+        # build postback flow 
+        # each postback includes a payload check, a state update,
+        # and a message sending action
+        postback_logic = \
+"""
+if message_payload = "$payload$":
+    $state_update$
+
+    $message_sending$
+"""
+    
+        for name, data in self.carousels:
+            for option in data["options"]:
+                
 
         return web_logic
 
@@ -351,7 +371,7 @@ $name$ = {
 
         car_elems = []
 
-        for name, data in carousels:
+        for name, data in self.carousels:
             for option in data["options"]:
                 # parse option specs
                 
@@ -385,7 +405,7 @@ $name$ = {
 
         message_list_container = []
 
-        for name, data in message_lists:
+        for name, data in self.message_lists:
             # we keep message variable names as <title.index>
             for idx, msg in enumerate(data["messages"]):
                 title = "%s_%s" % (name, idx)
