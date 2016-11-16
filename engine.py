@@ -28,16 +28,29 @@
 
     - TODO: proper text templating library; simple python string formatting
     doesn't work if dictionaries are being written
-        - possibly write a string templating wrapper function: DONE
+        - possibly write a string templating wrapper function
+        - DONE
 
-    - (possible constraint) only postbacks trigger message lists; message lists
+    - (possible constraint) postbacks only trigger message lists; message lists
     can trigger message lists and postbacks
 
     - each user has a unique record in the state collection
         - we can use indices to keep track of when and where responses need
-        to be stored for messages 
+        to be stored for message lists
         - we need switches to know which control flow branch to follow after a
         response (e.g. postback target or message_list target)
+
+    - how do we store intermediary decisions (e.g. carousel postback selections)
+    such that we can use them for logging in the future
+        - can force users to add a "data" attribute to carousel options
+        - create a global "data" object which we insert into mongo at the end of
+        a "flow" => easiest way to avoid updating previous transactions
+        - (caveat) how do we denote the start and the end of a "flow"
+        - based on the bot we built, a carousel postback following a message
+        response would instantiate a flow; a message target following a carousel
+        postback would terminate a flow
+        - all message lists are considered flows; so we know storage for message
+        lists should take place when idx == len(message_list)-1
 
     Example JSON
     ------------
@@ -292,6 +305,10 @@ if data["object"] == "page":
         for messaging_event in entry["messaging"]:
             sender_id = messaging_event["sender"]["id"]
 
+            if not db["state"].find_one({"user_id": sender_id}):
+                # create a state map for the user - should only take place once
+                db["state"].insert($state_map_template$)
+
             if messaging_event["postback"]:
                 # user submitted a postback through carousel click
                 payload = messaging_event["postback"]["payload"]
@@ -301,7 +318,6 @@ if data["object"] == "page":
             elif messaging_event["message"]:
                 # user submitted a message response (text)
                 message = messaging_event["message"]["text"]
-
 
                 $message_control_flow$
 
@@ -322,7 +338,7 @@ if data["object"] == "page":
 if message_payload = "$payload$":
     $state_update$
 
-    $message_sending$
+    $content_sending$
 """
     
         for name, data in self.carousels:
@@ -424,6 +440,26 @@ $name$ = {
 
         return True
 
+
+    def state_creation(self):
+        """
+            Method to create state object to handle message responses correctly.
+            
+            Each "node" in the carousel and message list containers should have
+            corresponding switches in the state map.
+        """
+        state_map = {}
+
+        for node in self.json_data:
+            state_map[node] = False
+
+        state_map["flow_instantiated"] = False
+
+        state_map["previous_type"] = ""
+
+        state_map["data"] = {}
+
+        return state_map
 
     def process(self):
         """
