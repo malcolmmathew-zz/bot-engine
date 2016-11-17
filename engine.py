@@ -142,7 +142,7 @@ def format_string(string_template, **kwargs):
         kwargs : {dict}
             keyword arguments corresponding to template placeholders
     """
-    template_char = '$'
+    template_char = '~'
 
     # identify all occurences of templates
     idx = 0
@@ -250,13 +250,14 @@ from content import *
 app = Flask(__name__)
 
 # mongo constants
-client = MongoClient($mongo_ip$, $mongo_port$)
-db = client[$user_id$]
+client = MongoClient(~mongo_ip~, ~mongo_port~)
+db = client[~user_id~]
+state_coll = db["state"]
 
 # message sending helper
 def send_message(sender_id, message_data):
     params = {
-        "access_token": $page_access_token$
+        "access_token": ~page_access_token~
     }
 
     headers = {
@@ -276,14 +277,14 @@ def send_message(sender_id, message_data):
 @app.route("/", methods=["GET"])
 def verify():
     if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
-        if not request.args.get("hub.verify_token") == $verify_token$:
+        if not request.args.get("hub.verify_token") == ~verify_token~:
             return "Verificiation token mismatch", 403
         return request.args["hub.challenge"], 200
 
     return "Application Verified!", 200
 
 @app.route("/", methods=["POST"])
-$webhook_logic$
+~webhook_logic~
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
@@ -307,19 +308,35 @@ if data["object"] == "page":
 
             if not db["state"].find_one({"user_id": sender_id}):
                 # create a state map for the user - should only take place once
-                db["state"].insert($state_map_template$)
+                state_coll.insert(~state_map_template~)
 
             if messaging_event["postback"]:
-                # user submitted a postback through carousel click
-                payload = messaging_event["postback"]["payload"]
+                # detect previous state to know if flow has been instantiated
+                if state_coll.find_one({"user": sender_id})["current_type"] = "message_list":
+                    state_coll.update({"user": sender_id}, {
+                        "$set": {
+                            "flow_instantiated": True
+                        }
+                    }, upsert=False)
 
-                $postback_control_flow$
+                state_coll.update({"user": sender_id}, {
+                    "$set": {
+                        "current_type": "postback"
+                    }
+                }, upsert=False)
+
+                # user submitted a postback through carousel click
+                message_payload = messaging_event["postback"]["payload"]
+
+                ~postback_control_flow~
 
             elif messaging_event["message"]:
                 # user submitted a message response (text)
                 message = messaging_event["message"]["text"]
 
-                $message_control_flow$
+                ~message_control_flow~
+
+                # detect the end of a flow based on the index and length o
 
             elif messaging_event["delivery"]:
                 # confirm delivery - currently not supported
@@ -335,15 +352,53 @@ if data["object"] == "page":
         # and a message sending action
         postback_logic = \
 """
-if message_payload = "$payload$":
-    $state_update$
+if message_payload == "~payload~":
+    state_coll.find_one({"user_id": sender_id}, {
+        "$set": {
+            "~target~.switch": True
+        }
+    }, upsert=False)
 
-    $content_sending$
+    ~data_insertion~
+
+    send_message(sender_id, ~target_content~)
+
+    continue
 """
-    
+        
+        postback_container = []
+
         for name, data in self.carousels:
             for option in data["options"]:
+                payload = option["name"].upper()
+                target = option["target"]
+
+                target_content = "%s_0" % option["target"] if \
+                    self.json_data[option["target"]]["type"] == "message_list" \
+                    else option["target"]
+
+                if option["storage"]:
+                    data_insertion = \
+"""
+state_coll.find_one({"user_id": sender_id}, {
+    "$set": {
+        "data.%s": message_payload
+    }
+}, upsert=False)
+"""
+            
+                    data_insertion = data_insertion % option["storage"]
                 
+                else:
+                    data_insertion = ""
+
+                logic = format_string(postback_logic, 
+                                      payload=option["name"].upper(),
+                                      target=option["target"], 
+                                      data_insertion=data_insertion,
+                                      target_content=target_content)
+
+                postback_container.append(logic)
 
         return web_logic
 
@@ -365,24 +420,24 @@ if message_payload = "$payload$":
 
         base_content = \
 """
-$carousels$
+~carousels~
 
-$messages$
+~messages~
 """
 
         carousel_base = \
 """
-$name$ = {
+~name~ = {
     "attachment": {
         "type": "template",
         "payload": {
             "template_type": "generic",
-            "elements": $carousel_elements$
+            "elements": ~carousel_elements~
         }
     }
 }
 """
-   
+
         carousel_container = []
 
         car_elems = []
@@ -414,8 +469,8 @@ $name$ = {
 
         message_base = \
 """
-$name$ = {
-    "text": "$message_text$"
+~name~ = {
+    "text": "~message_text~"
 }
 """
 
@@ -450,8 +505,15 @@ $name$ = {
         """
         state_map = {}
 
-        for node in self.json_data:
-            state_map[node] = False
+        for node, node_data in self.json_data.iteritems():
+            state_map[node] = {
+                "switch": True
+            }
+
+            if node_data["type"] == "message_list":
+                # we add index and length fields
+                state_map[node]["index"] = 0
+                state_map[node]["length"] = len(node_data["messages"])
 
         state_map["flow_instantiated"] = False
 
