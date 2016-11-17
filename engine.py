@@ -52,6 +52,11 @@
         - all message lists are considered flows; so we know storage for message
         lists should take place when idx == len(message_list)-1
 
+    - for now we assume that users are dilligent in the types of responses that
+    they provide
+        - we only use the "expected_input" field to type cast sender responses
+        before inserting into the database
+
     Example JSON
     ------------
     - database configuration
@@ -334,9 +339,68 @@ if data["object"] == "page":
                 # user submitted a message response (text)
                 message = messaging_event["message"]["text"]
 
+                # set the current state to message list
+                state_coll.update({"user": sender_id}, {
+                    "$set": {
+                        "current_type": "message_list"
+                    }
+                }, upsert=False)
+
+                # find out what node has been turned on
+                nodes = state_coll.find_one({"user_id": sender_id})
+
+                switch_node = None
+
+                for node, info in nodes.iteritems():
+                    if node in ["flow_instantiated", "current_type", "data"]:
+                        continue
+
+                    if node["switch"]:
+                        switch_node = node
+
+                # we've reached the end of a message list
+                flag_1 = \
+                    state_coll.find_one({"user_id": sender_id})[switch_node]["index"] >= \
+                    state_coll.find_one({"user_id": sender_id})[switch_node]["length"]
+
+                # there's only one element in the message list
+                flag_2 = \
+                    state_coll.find_one({"user_id": sender_id})[switch_node]["length"] == 1
+
+                flag_3 = state_coll.find_one({"user_id": sender_id})["flow_instantiated"]
+
+                # detect the end of a flow
+                if flag_1 or (flag_2 and flag_3):
+                    # flip flow switch
+                    state_coll.update({"user_id": sender_id}, {
+                        "$set": {
+                            "%s.flow_instantiated" % switch_node: False
+                        }
+                    }, upsert=False)
+
+                    # reset list index
+                    state_coll.update({"user_id": sender_id}, {
+                        "$set": {
+                            "%s.index" % switch_node: 0
+                        }
+                    }, upsert=False)
+
+                    # logic to insert the state "data" record
+
+                    # flip the node switch
+                    state_coll.update({"user_id": sender_id}, {
+                        "$set": {
+                            "%s.switch" % switch_node: False
+                        }
+                    }, upsert=False)
+
+                    # send the target message
+                    send_message(sender_id, )
+
                 ~message_control_flow~
 
                 # detect the end of a flow based on the index and length o
+                if state_coll.find_one({"user_id": sender_id})[switch_node]["index"] > 
 
             elif messaging_event["delivery"]:
                 # confirm delivery - currently not supported
@@ -349,7 +413,7 @@ if data["object"] == "page":
         
         # build postback flow 
         # each postback includes a payload check, a state update,
-        # and a message sending action
+        # possible data insertion, and a message sending action
         postback_logic = \
 """
 if message_payload == "~payload~":
@@ -373,6 +437,7 @@ if message_payload == "~payload~":
                 payload = option["name"].upper()
                 target = option["target"]
 
+                # messages that follow postbacks will always be indexed at 0
                 target_content = "%s_0" % option["target"] if \
                     self.json_data[option["target"]]["type"] == "message_list" \
                     else option["target"]
@@ -399,6 +464,22 @@ state_coll.find_one({"user_id": sender_id}, {
                                       target_content=target_content)
 
                 postback_container.append(logic)
+
+        # handle "message" responses
+        message_container = []
+
+        message_logic = \
+"""
+if switch_node == ~message_list~:
+    # store the response
+    state_coll.find_one({"user_id": sender_id}, {
+        "$set": {
+            "data.~storage~": message
+        }
+    }, upsert=False)
+
+    # increment the list index
+"""
 
         return web_logic
 
@@ -500,20 +581,23 @@ state_coll.find_one({"user_id": sender_id}, {
         """
             Method to create state object to handle message responses correctly.
             
+            Only "nodes" in the message list containers
             Each "node" in the carousel and message list containers should have
             corresponding switches in the state map.
         """
         state_map = {}
 
         for node, node_data in self.json_data.iteritems():
+            if node_data["type"] != "message_list":
+                continue
+
             state_map[node] = {
                 "switch": True
             }
 
-            if node_data["type"] == "message_list":
-                # we add index and length fields
-                state_map[node]["index"] = 0
-                state_map[node]["length"] = len(node_data["messages"])
+            # we add index and length fields
+            state_map[node]["index"] = 0
+            state_map[node]["length"] = len(node_data["messages"])
 
         state_map["flow_instantiated"] = False
 
