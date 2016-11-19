@@ -57,6 +57,10 @@
         - we only use the "expected_input" field to type cast sender responses
         before inserting into the database
 
+    - haven't thought about balances (high-level: aggregations)
+        - this would have to be a different message type
+        - right now message lists are either pure information or questions
+
     Example JSON
     ------------
     - database configuration
@@ -347,25 +351,24 @@ if data["object"] == "page":
                 }, upsert=False)
 
                 # find out what node has been turned on
-                nodes = state_coll.find_one({"user_id": sender_id})
+                state_map = state_coll.find_one({"user_id": sender_id})
 
                 switch_node = None
 
-                for node, info in nodes.iteritems():
+                data = None
+
+                for node, info in state_map.iteritems():
                     if node in ["flow_instantiated", "current_type", "data"]:
                         continue
 
                     if node["switch"]:
                         switch_node = node
+                        data = info
 
                 # we've reached the end of a message list
-                flag_1 = \
-                    state_coll.find_one({"user_id": sender_id})[switch_node]["index"] >= \
-                    state_coll.find_one({"user_id": sender_id})[switch_node]["length"]
+                flag_1 = info["index"] >= info["length"]
 
-                # there's only one element in the message list
-                flag_2 = \
-                    state_coll.find_one({"user_id": sender_id})[switch_node]["length"] == 1
+                flag_2 = info["length"] == 1
 
                 flag_3 = state_coll.find_one({"user_id": sender_id})["flow_instantiated"]
 
@@ -394,13 +397,50 @@ if data["object"] == "page":
                         }
                     }, upsert=False)
 
-                    # send the target message
-                    send_message(sender_id, )
+                    # flip the target switch
+                    state_coll.update({"user_id": sender_id}, {
+                        "$set": {
+                            "%s.switch" % switch_node["target"] : True
+                        }
+                    }, upsert=False)
 
-                ~message_control_flow~
+                    # send the message - this needs to be fixed by changing content folder to use a large dict
+                    send_message(sender_id, content_data[switch_node["target"]])
 
-                # detect the end of a flow based on the index and length o
-                if state_coll.find_one({"user_id": sender_id})[switch_node]["index"] > 
+                    continue
+
+                curr_idx = data["index"]
+
+                storage = data["list"][curr_idx]["storage"]
+
+                # we assume that collections and attributes are defined with camelCase
+                storage = "_".join(storage.split("."))
+
+                target = data["list"][curr_idx]["target"]
+
+                # store the response 
+                state_coll.update({"user_id": sender_id}, {
+                    "$set": {
+                        "data.%s" % storage: message
+                    }
+                }, upsert=False)
+
+                # increment the list index
+                state_coll.find_one({"user_id": sender_id}, {
+                    "$set": {
+                        "%s.index" % switch_node: curr_idx + 1
+                    }
+                }, upsert=False)
+
+                if (curr_idx + 1) > len(data["list"]):
+                    # end of message list
+                    continue
+
+                target_content = "%s_%s" % (switch_node, curr_idx+1)
+
+                send_message(sender_id, content_data[target_content])
+
+                continue
 
             elif messaging_event["delivery"]:
                 # confirm delivery - currently not supported
@@ -417,7 +457,7 @@ if data["object"] == "page":
         postback_logic = \
 """
 if message_payload == "~payload~":
-    state_coll.find_one({"user_id": sender_id}, {
+    state_coll.update({"user_id": sender_id}, {
         "$set": {
             "~target~.switch": True
         }
@@ -425,7 +465,7 @@ if message_payload == "~payload~":
 
     ~data_insertion~
 
-    send_message(sender_id, ~target_content~)
+    send_message(sender_id, content_data["~target_content~"])
 
     continue
 """
@@ -445,13 +485,13 @@ if message_payload == "~payload~":
                 if option["storage"]:
                     data_insertion = \
 """
-state_coll.find_one({"user_id": sender_id}, {
+state_coll.update({"user_id": sender_id}, {
     "$set": {
         "data.%s": message_payload
     }
 }, upsert=False)
 """
-            
+                    storage = "_".join(option["storage"].split("."))
                     data_insertion = data_insertion % option["storage"]
                 
                 else:
@@ -465,21 +505,9 @@ state_coll.find_one({"user_id": sender_id}, {
 
                 postback_container.append(logic)
 
-        # handle "message" responses
-        message_container = []
-
-        message_logic = \
-"""
-if switch_node == ~message_list~:
-    # store the response
-    state_coll.find_one({"user_id": sender_id}, {
-        "$set": {
-            "data.~storage~": message
-        }
-    }, upsert=False)
-
-    # increment the list index
-"""
+        web_logic = \
+            format_string(web_logic, 
+                          postback_control_flow="\n".join(postback_container))
 
         return web_logic
 
@@ -501,6 +529,11 @@ if switch_node == ~message_list~:
 
         base_content = \
 """
+content_data = {
+    ~carousels~,
+
+    ~messages~
+}
 ~carousels~
 
 ~messages~
@@ -567,8 +600,8 @@ if switch_node == ~message_list~:
                                   message_text=msg["message"]))
 
         content = format_string(
-            base_content, carousels="\n".join(carousel_container),
-            messages="\n".join(message_list_container))
+            base_content, carousels=",\n".join(carousel_container),
+            messages=",\n".join(message_list_container))
 
         # write content to file
         with open("content.py", "w") as file:
@@ -592,12 +625,12 @@ if switch_node == ~message_list~:
                 continue
 
             state_map[node] = {
-                "switch": True
+                "switch": False,
+                "index": 0,
+                "length" = len(node)
+                "list" = node_data["messages"],
+                "target" = node_data["target"]
             }
-
-            # we add index and length fields
-            state_map[node]["index"] = 0
-            state_map[node]["length"] = len(node_data["messages"])
 
         state_map["flow_instantiated"] = False
 
@@ -650,6 +683,8 @@ if __name__ == '__main__':
                         "message": "Please enter your age.",
                         "expected_input": "integer",
                         "storage": "user.age"
+                    }, {
+                        "message": "Thanks. Have a great day!"
                     }
                 ],
                 "target": "placeholder_node"
