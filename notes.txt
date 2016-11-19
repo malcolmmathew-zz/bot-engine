@@ -1,0 +1,42 @@
+- how do we correctly store chat-user responses; do we ask the engine-user to define storage elements (e.g. db collections, objects)?
+
+- it makes most sense for message responses (i.e. user response to an emitted message from a list) to be stored in a database
+    - the exception to this would be binary answers used to handle control flow
+    - still haven't decided whether or not to store carousel responses 
+
+- we need an overarching unique identifier for a bot-user => used when updating record attributes
+
+- we want keys/fields in JSON to be verbose
+
+- I'm (Sid) aiming to keep the deployed application as thin as possible with a minimal reliance on environment variables. Instead we hard-code said
+variables and pass their values as template strings. 
+
+- TODO: allow image url specifications for carousel options
+
+- current iteration supports single buttons for carousel
+    - added buttons is a straight forward change on the JSON end
+
+- TODO: proper text templating library; simple python string formatting doesn't work if dictionaries are being written
+    - possibly write a string templating wrapper function
+    - DONE
+
+- (possible constraint) postbacks only trigger message lists; message lists can trigger message lists and postbacks
+
+- each user has a unique record in the state collection
+    - we can use indices to keep track of when and where responses need to be stored for message lists
+    - we need switches to know which control flow branch to follow after a response (e.g. postback target or message_list target)
+
+- how do we store intermediary decisions (e.g. carousel postback selections) such that we can use them for logging in the future
+    - can force users to add a "data" attribute to carousel options
+    - create a global "data" object which we insert into mongo at the end of a "flow" => easiest way to avoid updating previous transactions
+    - (caveat) how do we denote the start and the end of a "flow"
+    - based on the bot we built, a carousel postback following a message response would instantiate a flow; a message target following a carousel
+    postback would terminate a flow
+    - all message lists are considered flows; so we know storage for message lists should take place when idx == len(message_list)-1
+
+- for now we assume that users are dilligent in the types of responses that they provide
+    - we only use the "expected_input" field to type cast sender responses before inserting into the database
+
+- haven't thought about balances (high-level: aggregations)
+    - this would have to be a different message type
+    - right now message lists are either pure information or questions
