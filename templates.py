@@ -144,17 +144,24 @@ if data["object"] == "page":
                         }
                     }, upsert=False)
 
-                    # flip the target switch
-                    state_coll.update({"user_id": sender_id}, {
-                        "$set": {
-                            "%s.switch" % switch_node["target"] : True
-                        }
-                    }, upsert=False)
+                   	# detect whether the node target is message list
+                   	is_ml = switch_node["target"] in state_map
 
-                    # send the message - this needs to be fixed by changing content folder to use a large dict
-                    send_message(sender_id, content_data[switch_node["target"]])
+                   	if is_ml:
+                   		# flip the target switch as it exists in the state map
+                   		state_coll.update({"user_id": sender_id}, {
+                   			"$set": {
+                   				"%s.switch" % switch_node["target"] : True
+                   			}
+                   		}, upsert=False)
 
-                    continue
+                   		target = "%s_0" % switch_node["target"]
+                   	else:
+                   		target = switch_node["target"]
+
+                   	send_message(sender_id, content_data[target])
+
+                   	continue
 
                 curr_idx = data["index"]
 
@@ -162,8 +169,6 @@ if data["object"] == "page":
 
                 # we assume that collections and attributes are defined with camelCase
                 storage = "_".join(storage.split("."))
-
-                target = data["list"][curr_idx]["target"]
 
                 # store the response 
                 state_coll.update({"user_id": sender_id}, {
