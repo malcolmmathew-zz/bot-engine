@@ -33,6 +33,22 @@ variables and pass their values as template strings.
     - based on the bot we built, a carousel postback following a message response would instantiate a flow; a message target following a carousel
     postback would terminate a flow
     - all message lists are considered flows; so we know storage for message lists should take place when idx == len(message_list)-1
+        - currently using the state's data object to store message list information as well
+
+- storage logic
+    - we perform insertions for each and every user response
+        - creates disjoint records, and doesn't allow for record references and groupings in the future
+        - (e.g. we want user information to be stored together but we create separate records)
+    - for every storage field we ask the user to specify ID_FIELDS
+        - ID_FIELDS correspond to a set of collection attributes used for UPDATES
+    - we force users to specify primary keys for collections in the database configuration
+        - we predefine primary keys that are relevant to chatbots and logging (e.g. user_id, current_date)
+    - we assume that users are dilligent in grouping records together
+        - e.g. all or groups of a single message list's responses are stored in the same collection
+        - we programmatically group records in the 'data' map based on the collection;
+        - we add a 'user_id' field for all groups
+        - we add a 'date' field for all groups being inserted at the end of a flow
+        - LEANING TOWARDS THIS
 
 - for now we assume that users are dilligent in the types of responses that they provide
     - we only use the "expected_input" field to type cast sender responses before inserting into the database
