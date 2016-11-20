@@ -5,6 +5,7 @@ base_application_logic = \
 """
 import os
 import json
+import datetime as dt
 
 import requests
 from pymongo import MongoClient
@@ -121,13 +122,6 @@ if data["object"] == "page":
 
                 # detect the end of a flow
                 if flag_1 or (flag_2 and flag_3):
-                    # flip flow switch
-                    state_coll.update({"user_id": sender_id}, {
-                        "$set": {
-                            "%s.flow_instantiated" % switch_node: False
-                        }
-                    }, upsert=False)
-
                     # reset list index
                     state_coll.update({"user_id": sender_id}, {
                         "$set": {
@@ -145,19 +139,52 @@ if data["object"] == "page":
                     }, upsert=False)
 
                    	# detect whether the node target is message list
-                   	is_ml = switch_node["target"] in state_map
+                   	is_ml = info["target"] in state_map
 
                    	if is_ml:
                    		# flip the target switch as it exists in the state map
                    		state_coll.update({"user_id": sender_id}, {
                    			"$set": {
-                   				"%s.switch" % switch_node["target"] : True
+                   				"%s.switch" % info["target"] : True
                    			}
                    		}, upsert=False)
 
-                   		target = "%s_0" % switch_node["target"]
+                   		target = "%s_0" % info["target"]
                    	else:
-                   		target = switch_node["target"]
+                   		target = info["target"]
+
+                   	# data insertion logic
+                   	coll_map = {}
+
+                   	data = state_coll.find_one({"user_id": sender_id})["data"]
+
+                   	for storage, datum in data.iteritems():
+                   		storage_info = storage.split("_")
+                   		collection = storage_info[0]
+                   		attribute = stprage_info[1]
+
+                   		if collection not in coll_map:
+                   			coll_map[collection] = {}
+
+                   		coll_map[collection][attribute] = datum
+
+                   	for coll, record in coll_map.iteritems():
+                   		if flag_3:
+                   			# storage as part of a flow - add a date record
+                   			coll_map[coll]["date"] = dt.datetime.today().strftime("%d-%m-%Y") 
+
+                   		coll_map[coll]["user_id"] = sender_id
+
+                   		state_coll = db[coll]
+
+                   		state_coll.insert(record)
+
+                   	# flip flow switch
+                    state_coll.update({"user_id": sender_id}, {
+                        "$set": {
+                            "%s.flow_instantiated" % switch_node: False
+                        }
+                    }, upsert=False)
 
                    	send_message(sender_id, content_data[target])
 
@@ -201,8 +228,6 @@ if data["object"] == "page":
             elif messaging_event["optin"]:
                 # confirm optin - currently not supported
                 pass
-
-            # TODO - insert data into mongo
 """
 
 postback_logic = \
