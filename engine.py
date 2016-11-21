@@ -150,13 +150,15 @@ class Engine:
             mongo_host : {string}
                 database url; should include appropriate port
         """
+        self.user_id = user_id
         self.json_data = json.loads(json_string)
         self.pat = kwargs["page_access_token"]
         self.vt = kwargs["verification_token"]
+        self.mongo_host = kwargs["mongo_host"]
 
         # database config
-        self.client = MongoClient(kwargs["mongo_host"])
-        self.db = self.client[user_id]
+        self.client = MongoClient(self.mongo_host)
+        self.db = self.client[self.user_id]
 
         # bot application config
         self.application_logic = self.base_application_logic()
@@ -181,18 +183,6 @@ class Engine:
 
         for coll in db_config["collections"]:
             self.db[coll].insert({"record": "placecholder"})
-
-
-    def base_application_logic(self):
-        """
-            Build the base for the bot's application logic. Handles app
-            instantiation, verification, and basic message sending.
-
-            For now we try our best to follow PEP8 standards. Weird indentation
-            for strings is to allow for proper file writing.
-        """
-
-        return tl.base_application_logic
 
 
     def webhook_logic(self):
@@ -345,9 +335,20 @@ state_coll.update({"user_id": sender_id}, {
 
     def logic_creation(self):
         """
-            Primary method for bot logic creation. Outputs to separate file.
+            Primary method for bot/application logic creation. Outputs to 
+            separate file.
         """
-        return True 
+
+        al = \
+            format_string(tl.application_logic, mongo_host=self.mongo_host, 
+                          user_id=self.user_id, page_access_token=self.pat,
+                          verify_token=self.vt, webhook_logic=webhook_logic())
+
+        # write content t ofile
+        with open("app.py", "w") as file:
+            file.write(al)
+
+        return True
 
 
     def process(self):
@@ -360,6 +361,8 @@ state_coll.update({"user_id": sender_id}, {
         self.database_config()
 
         self.content_creation()
+
+        self.logic_creation()
 
         return True
 
