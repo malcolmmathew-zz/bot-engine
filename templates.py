@@ -16,7 +16,7 @@ from content import *
 app = Flask(__name__)
 
 # mongo constants
-client = MongoClient(~mongo_ip~, ~mongo_port~)
+client = MongoClient(~mongo_host~)
 db = client[~user_id~]
 state_coll = db["state"]
 
