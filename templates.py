@@ -1,5 +1,5 @@
 """
-	Templates used for logic building.
+    Templates used for logic building.
 """
 base_application_logic = \
 """
@@ -122,6 +122,16 @@ if data["object"] == "page":
 
                 # detect the end of a flow
                 if flag_1 or (flag_2 and flag_3):
+                    # if lone message and part of a flow - add to state data
+                    if flag_2 and flag_3:
+
+
+                        state_coll.update({"user_id": sender_id}, {
+                            "$set": {
+                                "data.%s" % info["list"]
+                            }
+                        }, upsert=False)
+
                     # reset list index
                     state_coll.update({"user_id": sender_id}, {
                         "$set": {
@@ -138,57 +148,69 @@ if data["object"] == "page":
                         }
                     }, upsert=False)
 
-                   	# detect whether the node target is message list
-                   	is_ml = info["target"] in state_map
-
-                   	if is_ml:
-                   		# flip the target switch as it exists in the state map
-                   		state_coll.update({"user_id": sender_id}, {
-                   			"$set": {
-                   				"%s.switch" % info["target"] : True
-                   			}
-                   		}, upsert=False)
-
-                   		target = "%s_0" % info["target"]
-                   	else:
-                   		target = info["target"]
-
-                   	# data insertion logic
-                   	coll_map = {}
-
-                   	data = state_coll.find_one({"user_id": sender_id})["data"]
-
-                   	for storage, datum in data.iteritems():
-                   		storage_info = storage.split("_")
-                   		collection = storage_info[0]
-                   		attribute = stprage_info[1]
-
-                   		if collection not in coll_map:
-                   			coll_map[collection] = {}
-
-                   		coll_map[collection][attribute] = datum
-
-                   	for coll, record in coll_map.iteritems():
-                   		if flag_3:
-                   			# storage as part of a flow - add a date record
-                   			coll_map[coll]["date"] = dt.datetime.today().strftime("%d-%m-%Y") 
-
-                   		coll_map[coll]["user_id"] = sender_id
-
-                   		state_coll = db[coll]
-
-                   		state_coll.insert(record)
-
-                   	# flip flow switch
+                    # flip flow switch
                     state_coll.update({"user_id": sender_id}, {
                         "$set": {
                             "%s.flow_instantiated" % switch_node: False
                         }
                     }, upsert=False)
 
-                   	send_message(sender_id, content_data[target])
+                    # data insertion logic
+                    coll_map = {}
 
-                   	continue
+                    # if lone message and part of flow - add to state data before insertion
+                    if flag_2 and flag_3:
+                        # check if message needs to be stored
+                        if "storage" in info["list"][0]:
+                            storage_det = "_".join(info["list"][0]["storage"].split("."))
+
+                            state_coll.update({"user_id" : sender_id}, {
+                                "$set": {
+                                    "data.%s" % storage_det: message
+                                }
+                            }, upsert=False)
+
+                    data = state_coll.find_one({"user_id": sender_id})["data"]
+
+                    for storage, datum in data.iteritems():
+                        storage_info = storage.split("_")
+                        collection = storage_info[0]
+                        attribute = stprage_info[1]
+
+                        if collection not in coll_map:
+                            coll_map[collection] = {}
+
+                        coll_map[collection][attribute] = datum
+
+                    for coll, record in coll_map.iteritems():
+                        if flag_3:
+                            # storage as part of a flow - add a date record
+                            coll_map[coll]["date"] = dt.datetime.today().strftime("%d-%m-%Y") 
+
+                        coll_map[coll]["user_id"] = sender_id
+
+                        state_coll = db[coll]
+
+                        state_coll.insert(record)
+
+                    # detect whether the node target is message list
+                    target_is_ml = info["target"] in state_map
+
+                    if target_is_ml:
+                        # flip the target switch as it exists in the state map
+                        state_coll.update({"user_id": sender_id}, {
+                            "$set": {
+                                "%s.switch" % info["target"] : True
+                            }
+                        }, upsert=False)
+
+                        target = "%s_0" % info["target"]
+                    else:
+                        target = info["target"]
+
+                    send_message(sender_id, content_data[target])
+
+                    continue
 
                 curr_idx = data["index"]
 
@@ -211,7 +233,7 @@ if data["object"] == "page":
                     }
                 }, upsert=False)
 
-                if (curr_idx + 1) > len(data["list"]):
+                if (curr_idx + 1) >= len(data["list"]):
                     # end of message list
                     continue
 
