@@ -124,7 +124,7 @@ class Engine:
     """
         Primary engine class for parsing JSON into application logic.
     """
-    def __init__(self, user_id, page_access_token, verify_token, json_string):
+    def __init__(self, user_id, json_string, **kwargs):
         """
             Constructor. Also handles database configuration and 
             application logic instantiation.
@@ -132,26 +132,30 @@ class Engine:
             Parameters
             ----------
             user_id : {string}
-                alphanumeric identifier for user requiring engine
-            
+                alphanumeric identifier for user requiring engine       
+        
+            json_string : {JSON}
+                data obtained from multiple sources in JSON format.
+
+            Keyword-Arguments
+            -----------------
             page_access_token : {string}
                 alphanumeric token used to identify user's page; required for 
                 application logic
         
-            verify_token : {string}
+            verification_token : {string}
                 alphanumeric token for hub verification; required for 
-                application logic       
-        
-            json_string : {JSON}
-                data obtained from multiple sources in JSON format.
+                application logic
+
+            mongo_host : {string}
+                database url; should include appropriate port
         """
         self.json_data = json.loads(json_string)
-        self.pat = page_access_token
-        self.vt = verify_token
+        self.pat = kwargs["page_access_token"]
+        self.vt = kwargs["verification_token"]
 
         # database config
-        self.client = MongoClient(os.environ["MONGO_IP"], 
-                                  os.environ["MONGO_PORT"])
+        self.client = MongoClient(kwargs["mongo_host"])
         self.db = self.client[user_id]
 
         # bot application config
@@ -338,6 +342,14 @@ state_coll.update({"user_id": sender_id}, {
 
         return state_map
 
+
+    def logic_creation(self):
+        """
+            Primary method for bot logic creation. Outputs to separate file.
+        """
+        return True 
+
+
     def process(self):
         """
             Primary method to handle engine process. Calls member function in
@@ -356,8 +368,9 @@ if __name__ == '__main__':
     # create dict, convert to JSON and then parse
     test_data = {
         "page_access_token": os.environ["PAGE_ACCESS_TOKEN"],
-        "verify_token": os.environ["VERIFY_TOKEN"],
+        "verification_token": os.environ["VERIFICATION_TOKEN"],
         "database_configuration" : {
+            "mongo_host" : "<mongo_host_ip>",
             "collections" : ["user", "transactions"]
         },
         "bot_configuration": {
@@ -410,7 +423,10 @@ if __name__ == '__main__':
 
     json_data = json.dumps(test_data)
 
-    bot_engine = Engine("sunnithan95", test_data["page_access_token"], 
-                        test_data["verify_token"], json_data)
+    bot_engine = \
+        Engine("sunnithan95", json_data, 
+               page_access_token=test_data["page_access_token"],
+               verification_token=test_data["verification_token"],
+               mongo_host=test_data["database_configuration"]["mongo_host"])
 
     print bot_engine.process()
