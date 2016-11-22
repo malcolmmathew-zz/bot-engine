@@ -12,6 +12,7 @@ from pymongo import MongoClient
 from flask import Flask
 
 from content import *
+import state as st
 
 app = Flask(__name__)
 
@@ -58,214 +59,208 @@ if __name__ == "__main__":
 
 webhook_logic = \
 """
-if data["object"] == "page":
-    for entry in data["entry"]:
-        for messaging_event in entry["messaging"]:
-            sender_id = messaging_event["sender"]["id"]
+def webhook():
+    if data["object"] == "page":
+        for entry in data["entry"]:
+            for messaging_event in entry["messaging"]:
+                sender_id = messaging_event["sender"]["id"]
 
-            if not db["state"].find_one({"user_id": sender_id}):
-                # create a state map for the user - should only take place once
-                state_coll.insert(~state_map_template~)
+                if not db["state"].find_one({"user_id": sender_id}):
+                    # create a state map for the user - should only take place once
+                    state_map = st.state_map
+                    state_map["user_id"] = sender_id
+                    state_coll.insert(state_map)
 
-            if messaging_event["postback"]:
-                # detect previous state to know if flow has been instantiated
-                if state_coll.find_one({"user": sender_id})["current_type"] = "message_list":
-                    state_coll.update({"user": sender_id}, {
-                        "$set": {
-                            "flow_instantiated": True
-                        }
-                    }, upsert=False)
-
-                state_coll.update({"user": sender_id}, {
-                    "$set": {
-                        "current_type": "postback"
-                    }
-                }, upsert=False)
-
-                # user submitted a postback through carousel click
-                message_payload = messaging_event["postback"]["payload"]
-
-                ~postback_control_flow~
-
-            elif messaging_event["message"]:
-                # user submitted a message response (text)
-                message = messaging_event["message"]["text"]
-
-                # set the current state to message list
-                state_coll.update({"user": sender_id}, {
-                    "$set": {
-                        "current_type": "message_list"
-                    }
-                }, upsert=False)
-
-                # find out what node has been turned on
-                state_map = state_coll.find_one({"user_id": sender_id})
-
-                switch_node = None
-
-                data = None
-
-                for node, info in state_map.iteritems():
-                    if node in ["flow_instantiated", "current_type", "data"]:
-                        continue
-
-                    if node["switch"]:
-                        switch_node = node
-                        data = info
-
-                # we've reached the end of a message list
-                flag_1 = info["index"] >= info["length"]
-
-                flag_2 = info["length"] == 1
-
-                flag_3 = state_coll.find_one({"user_id": sender_id})["flow_instantiated"]
-
-                # detect the end of a flow
-                if flag_1 or (flag_2 and flag_3):
-                    # if lone message and part of a flow - add to state data
-                    if flag_2 and flag_3:
-
-
-                        state_coll.update({"user_id": sender_id}, {
+                if messaging_event["postback"]:
+                    # detect previous state to know if flow has been instantiated
+                    if state_coll.find_one({"user": sender_id})["current_type"] = "message_list":
+                        state_coll.update({"user": sender_id}, {
                             "$set": {
-                                "data.%s" % info["list"]
+                                "flow_instantiated": True
                             }
                         }, upsert=False)
 
-                    # reset list index
-                    state_coll.update({"user_id": sender_id}, {
+                    state_coll.update({"user": sender_id}, {
                         "$set": {
-                            "%s.index" % switch_node: 0
+                            "current_type": "postback"
                         }
                     }, upsert=False)
 
-                    # logic to insert the state "data" record
+                    # user submitted a postback through carousel click
+                    message_payload = messaging_event["postback"]["payload"]
 
-                    # flip the node switch
-                    state_coll.update({"user_id": sender_id}, {
+                    ~postback_control_flow~
+
+                elif messaging_event["message"]:
+                    # user submitted a message response (text)
+                    message = messaging_event["message"]["text"]
+
+                    # set the current state to message list
+                    state_coll.update({"user": sender_id}, {
                         "$set": {
-                            "%s.switch" % switch_node: False
+                            "current_type": "message_list"
                         }
                     }, upsert=False)
 
-                    # flip flow switch
-                    state_coll.update({"user_id": sender_id}, {
-                        "$set": {
-                            "%s.flow_instantiated" % switch_node: False
-                        }
-                    }, upsert=False)
+                    # find out what node has been turned on
+                    state_map = state_coll.find_one({"user_id": sender_id})
 
-                    # data insertion logic
-                    coll_map = {}
+                    switch_node = None
 
-                    # if lone message and part of flow - add to state data before insertion
-                    if flag_2 and flag_3:
-                        # check if message needs to be stored
-                        if "storage" in info["list"][0]:
-                            storage_det = "_".join(info["list"][0]["storage"].split("."))
+                    data = None
 
-                            state_coll.update({"user_id" : sender_id}, {
+                    for node, info in state_map.iteritems():
+                        if node in ["flow_instantiated", "current_type", "data"]:
+                            continue
+
+                        if node["switch"]:
+                            switch_node = node
+                            data = info
+
+                    # we've reached the end of a message list
+                    flag_1 = info["index"] >= info["length"]
+
+                    flag_2 = info["length"] == 1
+
+                    flag_3 = state_coll.find_one({"user_id": sender_id})["flow_instantiated"]
+
+                    # detect the end of a flow
+                    if flag_1 or (flag_2 and flag_3):
+                        # reset list index
+                        state_coll.update({"user_id": sender_id}, {
+                            "$set": {
+                                "%s.index" % switch_node: 0
+                            }
+                        }, upsert=False)
+
+                        # logic to insert the state "data" record
+
+                        # flip the node switch
+                        state_coll.update({"user_id": sender_id}, {
+                            "$set": {
+                                "%s.switch" % switch_node: False
+                            }
+                        }, upsert=False)
+
+                        # flip flow switch
+                        state_coll.update({"user_id": sender_id}, {
+                            "$set": {
+                                "%s.flow_instantiated" % switch_node: False
+                            }
+                        }, upsert=False)
+
+                        # data insertion logic
+                        coll_map = {}
+
+                        # if lone message and part of flow - add to state data before insertion
+                        if flag_2 and flag_3:
+                            # check if message needs to be stored
+                            if "storage" in info["list"][0]:
+                                storage_det = "_".join(info["list"][0]["storage"].split("."))
+
+                                state_coll.update({"user_id": sender_id}, {
+                                    "$set": {
+                                        "data.%s" % storage_det: message
+                                    }
+                                }, upsert=False)
+
+                        data = state_coll.find_one({"user_id": sender_id})["data"]
+
+                        for storage, datum in data.iteritems():
+                            storage_info = storage.split("_")
+                            collection = storage_info[0]
+                            attribute = stprage_info[1]
+
+                            if collection not in coll_map:
+                                coll_map[collection] = {}
+
+                            coll_map[collection][attribute] = datum
+
+                        for coll, record in coll_map.iteritems():
+                            if flag_3:
+                                # storage as part of a flow - add a date record
+                                coll_map[coll]["date"] = dt.datetime.today().strftime("%d-%m-%Y") 
+
+                            coll_map[coll]["user_id"] = sender_id
+
+                            state_coll = db[coll]
+
+                            state_coll.insert(record)
+
+                        # detect whether the node target is message list
+                        target_is_ml = info["target"] in state_map
+
+                        if target_is_ml:
+                            # flip the target switch as it exists in the state map
+                            state_coll.update({"user_id": sender_id}, {
                                 "$set": {
-                                    "data.%s" % storage_det: message
+                                    "%s.switch" % info["target"]: True
                                 }
                             }, upsert=False)
 
-                    data = state_coll.find_one({"user_id": sender_id})["data"]
+                            target = "%s_0" % info["target"]
+                        else:
+                            target = info["target"]
 
-                    for storage, datum in data.iteritems():
-                        storage_info = storage.split("_")
-                        collection = storage_info[0]
-                        attribute = stprage_info[1]
+                        send_message(sender_id, content_data[target])
 
-                        if collection not in coll_map:
-                            coll_map[collection] = {}
+                        continue
 
-                        coll_map[collection][attribute] = datum
+                    curr_idx = data["index"]
 
-                    for coll, record in coll_map.iteritems():
-                        if flag_3:
-                            # storage as part of a flow - add a date record
-                            coll_map[coll]["date"] = dt.datetime.today().strftime("%d-%m-%Y") 
+                    storage = data["list"][curr_idx]["storage"]
 
-                        coll_map[coll]["user_id"] = sender_id
+                    # we assume that collections and attributes are defined with camelCase
+                    storage = "_".join(storage.split("."))
 
-                        state_coll = db[coll]
+                    # store the response 
+                    state_coll.update({"user_id": sender_id}, {
+                        "$set": {
+                            "data.%s" % storage: message
+                        }
+                    }, upsert=False)
 
-                        state_coll.insert(record)
+                    # increment the list index
+                    state_coll.find_one({"user_id": sender_id}, {
+                        "$set": {
+                            "%s.index" % switch_node: curr_idx + 1
+                        }
+                    }, upsert=False)
 
-                    # detect whether the node target is message list
-                    target_is_ml = info["target"] in state_map
+                    if (curr_idx + 1) >= len(data["list"]):
+                        # end of message list
+                        continue
 
-                    if target_is_ml:
-                        # flip the target switch as it exists in the state map
-                        state_coll.update({"user_id": sender_id}, {
-                            "$set": {
-                                "%s.switch" % info["target"] : True
-                            }
-                        }, upsert=False)
+                    target_content = "%s_%s" % (switch_node, curr_idx+1)
 
-                        target = "%s_0" % info["target"]
-                    else:
-                        target = info["target"]
-
-                    send_message(sender_id, content_data[target])
+                    send_message(sender_id, content_data[target_content])
 
                     continue
 
-                curr_idx = data["index"]
+                elif messaging_event["delivery"]:
+                    # confirm delivery - currently not supported
+                    pass
 
-                storage = data["list"][curr_idx]["storage"]
-
-                # we assume that collections and attributes are defined with camelCase
-                storage = "_".join(storage.split("."))
-
-                # store the response 
-                state_coll.update({"user_id": sender_id}, {
-                    "$set": {
-                        "data.%s" % storage: message
-                    }
-                }, upsert=False)
-
-                # increment the list index
-                state_coll.find_one({"user_id": sender_id}, {
-                    "$set": {
-                        "%s.index" % switch_node: curr_idx + 1
-                    }
-                }, upsert=False)
-
-                if (curr_idx + 1) >= len(data["list"]):
-                    # end of message list
-                    continue
-
-                target_content = "%s_%s" % (switch_node, curr_idx+1)
-
-                send_message(sender_id, content_data[target_content])
-
-                continue
-
-            elif messaging_event["delivery"]:
-                # confirm delivery - currently not supported
-                pass
-
-            elif messaging_event["optin"]:
-                # confirm optin - currently not supported
-                pass
+                elif messaging_event["optin"]:
+                    # confirm optin - currently not supported
+                    pass
 """
 
+# 4 tabs are known based on webhook_logic layout
 postback_logic = \
 """
-if message_payload == "~payload~":
-    state_coll.update({"user_id": sender_id}, {
-        "$set": {
-            "~target~.switch": True
-        }
-    }, upsert=False)
+                if message_payload == "~payload~":
+                    state_coll.update({"user_id": sender_id}, {
+                        "$set": {
+                            "~target~.switch": True
+                        }
+                    }, upsert=False)
 
-    ~data_insertion~
+                    ~data_insertion~
 
-    send_message(sender_id, content_data["~target_content~"])
+                    send_message(sender_id, content_data["~target_content~"])
 
-    continue
+                    continue
 """
 
 content_base = \
@@ -275,14 +270,11 @@ content_data = {
 
     ~messages~
 }
-~carousels~
-
-~messages~
 """
 
 carousel_content_base = \
 """
-~name~ = {
+"~name~" : {
     "attachment": {
         "type": "template",
         "payload": {
@@ -295,7 +287,7 @@ carousel_content_base = \
 
 message_content_base = \
 """
-~name~ = {
+"~name~" : {
     "text": "~message_text~"
 }
 """

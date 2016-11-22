@@ -77,47 +77,7 @@ import os
 from pymongo import MongoClient
 
 import templates as tl
-
-import pdb
-
-def format_string(string_template, **kwargs):
-    """
-        Helper method to perform custom string templating. Allows the inclusion
-        of dictionaries in strings.
-
-        Parameters
-        ----------
-        string_template : {str}
-            main string to be reformatted using the new templating structure.
-
-        kwargs : {dict}
-            keyword arguments corresponding to template placeholders
-    """
-    template_char = '~'
-
-    # identify all occurences of templates
-    idx = 0
-
-    templates = []
-
-    while idx < len(string_template):
-        start_idx = string_template[idx:].find(template_char)
-        
-        if start_idx == -1:
-            # we've found all occurences of the templates
-            break
-
-        start_idx += idx
-
-        end_idx = \
-            string_template[start_idx+1:].find(template_char) + start_idx + 1 
-        templates.append(string_template[start_idx:end_idx+1])
-        idx = end_idx+1
-
-    for tpl in templates:
-        string_template = string_template.replace(tpl, str(kwargs[tpl[1:-1]]))
-
-    return string_template
+from utils import format_string
 
 
 class Engine: 
@@ -161,13 +121,16 @@ class Engine:
         self.db = self.client[self.user_id]
 
         # bot application config
-        self.application_logic = self.base_application_logic()
+        self.bot_configuration = self.json_data["bot_configuration"]
+        self.database_configuration = self.json_data["database_configuration"]
 
-        self.carousels = [(name, data) for name, data in self.json_data
-                          if data["type"] == "carousel"]
+        self.carousels = \
+            [(name, data) for name, data in self.bot_configuration.iteritems() 
+             if data["type"] == "carousel"]
 
-        self.message_lists = [(name, data) for name, data in self.json_data
-                              if data["type"] == "message_list"]
+        self.message_lists = \
+            [(name, data) for name, data in self.bot_configuration.iteritems()
+             if data["type"] == "message_list"]
 
     def database_config(self):
         """
@@ -177,7 +140,7 @@ class Engine:
             Only reason we create collections is for safety during record
             insertions.
         """
-        db_config = self.json_data["database_configuration"]
+        db_config = self.database_configuration
 
         db_config.append("state")
 
@@ -190,7 +153,7 @@ class Engine:
             Method to string together all components of the webhook logic
             (i.e. message, carousel, and quick reply handling).
         """
-        
+
         # build postback flow 
         # each postback includes a payload check, a state update,
         # possible data insertion, and a message sending action
@@ -203,10 +166,10 @@ class Engine:
 
                 # messages that follow postbacks will always be indexed at 0
                 target_content = "%s_0" % option["target"] if \
-                    self.json_data[option["target"]]["type"] == "message_list" \
+                    self.bot_configuration[option["target"]]["type"] == "message_list" \
                     else option["target"]
 
-                if option["storage"]:
+                if "storage" in option:
                     data_insertion = \
 """
 state_coll.update({"user_id": sender_id}, {
@@ -230,8 +193,9 @@ state_coll.update({"user_id": sender_id}, {
                 postback_container.append(logic)
 
         web_logic = \
-            format_string(tl.webhook_logic, state_map_template=state_creation()
-                          postback_control_flow="\n".join(postback_container))
+            format_string(
+                tl.webhook_logic, state_map_template=self.state_creation(),
+                postback_control_flow="\n".join(postback_container))
 
         return web_logic
 
@@ -243,14 +207,6 @@ state_coll.update({"user_id": sender_id}, {
         # temporary standard image url
         image_url = "http://messengerdemo.parseapp.com/img/rift.png"
 
-        carousels = [(name, data) for name, data in 
-                     self.json_data["bot_configuration"].iteritems() if 
-                     data["type"] == "carousel"]
-
-        message_lists = [(name, data) for name, data in 
-                         self.json_data["bot_configuration"].iteritems() if
-                         data["type"] == "message_list"]
-
         carousel_container = []
 
         car_elems = []
@@ -259,7 +215,7 @@ state_coll.update({"user_id": sender_id}, {
             for option in data["options"]:
                 # parse option specs
                 
-                title = " ".join(map(lambda x: x[:1].upper() + x[1:], 
+                title = " ".join(map(lambda x: x[:1].upper() + x[1:],
                                      option["name"].replace("_", " ").split(" ")))
 
                 elem = {
@@ -312,16 +268,16 @@ state_coll.update({"user_id": sender_id}, {
         """
         state_map = {}
 
-        for node, node_data in self.json_data.iteritems():
+        for node, node_data in self.bot_configuration.iteritems():
             if node_data["type"] != "message_list":
                 continue
 
             state_map[node] = {
                 "switch": False,
                 "index": 0,
-                "length" = len(node)
-                "list" = node_data["messages"],
-                "target" = node_data["target"]
+                "length" : len(node_data["messages"]),
+                "list" : node_data["messages"],
+                "target" : node_data["target"]
             }
 
         state_map["flow_instantiated"] = False
@@ -329,6 +285,15 @@ state_coll.update({"user_id": sender_id}, {
         state_map["previous_type"] = ""
 
         state_map["data"] = {}
+
+        file_content = \
+"""
+state_map = ~state_map_content~
+"""
+
+        # write state map to file
+        with open("state.py", "w") as file:
+            file.write(format_string(file_content, state_map_content=state_map))
 
         return state_map
 
@@ -339,10 +304,10 @@ state_coll.update({"user_id": sender_id}, {
             separate file.
         """
 
-        al = \
-            format_string(tl.application_logic, mongo_host=self.mongo_host, 
-                          user_id=self.user_id, page_access_token=self.pat,
-                          verify_token=self.vt, webhook_logic=webhook_logic())
+        al = format_string(
+            tl.base_application_logic, mongo_host=self.mongo_host, 
+            user_id=self.user_id, page_access_token=self.pat, 
+            verify_token=self.vt, webhook_logic=self.webhook_logic())
 
         # write content t ofile
         with open("app.py", "w") as file:
@@ -382,7 +347,7 @@ if __name__ == '__main__':
                 "options": [
                     {
                         "name": "log_income",
-                        "target": "income_amt_prompt"
+                        "target": "income_amount_prompt"
                     },
                     {
                         "name": "help",
@@ -409,7 +374,8 @@ if __name__ == '__main__':
                     {
                         "message": "Generic help message."
                     }
-                ]
+                ],
+                "target": "default"
             },
             "income_amount_prompt": {
                 "type": "message_list",
@@ -419,7 +385,8 @@ if __name__ == '__main__':
                         "expected_input": "float",
                         "storage": "transactions.amount"
                     }
-                ]
+                ],
+                "target": "default"
             }
         }
     }
