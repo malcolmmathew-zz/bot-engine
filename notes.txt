@@ -63,3 +63,10 @@ variables and pass their values as template strings.
 - last stage of changes
     - need to run engine and read over the output code
     - need to figure out how to deploy individual bot instances and how to refresh an instance if it already exists (i.e. how to make changes and have them persist)
+
+- database details
+    - tried mongolab => smooth setup but we're restricted to a single database
+    - can switch between databases but can't view collections or read/write
+    - don't think we can overlook the single database limitation
+    - might quickly work on setting up a single node on an ec2 instance
+        - will have to make use of AWS free tier
