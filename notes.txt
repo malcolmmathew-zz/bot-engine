@@ -43,7 +43,7 @@ variables and pass their values as template strings.
         - ID_FIELDS correspond to a set of collection attributes used for UPDATES
     - we force users to specify primary keys for collections in the database configuration
         - we predefine primary keys that are relevant to chatbots and logging (e.g. user_id, current_date)
-    - we assume that users are dilligent in grouping records together
+    - we assume that users are dilligent in grouping recorsd together
         - e.g. all or groups of a single message list's responses are stored in the same collection
         - we programmatically group records in the 'data' map based on the collection;
         - we add a 'user_id' field for all groups
@@ -75,3 +75,23 @@ variables and pass their values as template strings.
         - re-deploy application with correct database configuration
         - dply allows server creation after the first one expires; server remains ephemeral => data will not persist from one server to the other
         - no automated way to create servers using dply but I can scp bash scripts in bulk to setup the database environment
+
+- bot creation workflow
+    - Facebook page creation
+        - navigate to Facebook Developer Quickstart page, click "Skip and Create Application ID"
+        - specify Application name, primary contact email, and application category (e.g. communication)
+        - within 'Product Setup' navigate to Messenger and click 'Get Started'
+        - under 'Token Generation', select your previously created page and keep track of the outputted "Page Access Token"
+    - Engine configuration
+        - add the newly retrieved Page Access Token to the bot configuration JSON
+        - specify a custom verification token, and store it for later use
+        - run engine.py, passing the JSON configuration file and retrieve outputted application url
+    - Facebook page update
+        - navigate to "New Page Subscription" under "Product Setup => Messenger"
+        - specify the previously outputted application url under "Callback URL"
+        - specify the custom verification token under "Verify Token"
+        - click the ["messages", "message_deliveries", "messaging_optins", "messaging_postbacks"] options under "Subscription Fields"
+        - under "Webhooks", select your previously created page to subscribe to your newly created webhook
+    - Bot Communication
+        - navigate to your page on Facebook and click "Message" to begin communicating with your bot
+        
