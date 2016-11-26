@@ -18,13 +18,13 @@ app = Flask(__name__)
 
 # mongo constants
 client = MongoClient(~mongo_host~)
-db = client[~user_id~]
+db = client["~user_id~"]
 state_coll = db["state"]
 
 # message sending helper
 def send_message(sender_id, message_data):
     params = {
-        "access_token": ~page_access_token~
+        "access_token": "~page_access_token~"
     }
 
     headers = {
@@ -38,13 +38,14 @@ def send_message(sender_id, message_data):
         "message": message_data
     })
 
-    r = requests.post("https://graph.facebook.com/v2.6/me/messages",
-                      params=params, headers=headers, data=data)
+    requests.post("https://graph.facebook.com/v2.6/me/messages",
+                  params=params, headers=headers, data=data)
+
 
 @app.route("/", methods=["GET"])
 def verify():
     if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
-        if not request.args.get("hub.verify_token") == ~verify_token~:
+        if not request.args.get("hub.verify_token") == "~verify_token~":
             return "Verificiation token mismatch", 403
         return request.args["hub.challenge"], 200
 
@@ -65,7 +66,7 @@ def webhook():
             for messaging_event in entry["messaging"]:
                 sender_id = messaging_event["sender"]["id"]
 
-                if not db["state"].find_one({"user_id": sender_id}):
+                if not state_coll.find_one({"user_id": sender_id}):
                     # create a state map for the user - should only take place once
                     state_map = st.state_map
                     state_map["user_id"] = sender_id
@@ -73,7 +74,7 @@ def webhook():
 
                 if messaging_event["postback"]:
                     # detect previous state to know if flow has been instantiated
-                    if state_coll.find_one({"user": sender_id})["current_type"] = "message_list":
+                    if state_coll.find_one({"user": sender_id})["current_type"] == "message_list":
                         state_coll.update({"user": sender_id}, {
                             "$set": {
                                 "flow_instantiated": True
@@ -110,10 +111,7 @@ def webhook():
                     data = None
 
                     for node, info in state_map.iteritems():
-                        if node in ["flow_instantiated", "current_type", "data"]:
-                            continue
-
-                        if node["switch"]:
+                        if "switch" in node and node["switch"]:
                             switch_node = node
                             data = info
 
@@ -132,8 +130,6 @@ def webhook():
                                 "%s.index" % switch_node: 0
                             }
                         }, upsert=False)
-
-                        # logic to insert the state "data" record
 
                         # flip the node switch
                         state_coll.update({"user_id": sender_id}, {
@@ -169,7 +165,7 @@ def webhook():
                         for storage, datum in data.iteritems():
                             storage_info = storage.split("_")
                             collection = storage_info[0]
-                            attribute = stprage_info[1]
+                            attribute = storage_info[1]
 
                             if collection not in coll_map:
                                 coll_map[collection] = {}
@@ -179,13 +175,13 @@ def webhook():
                         for coll, record in coll_map.iteritems():
                             if flag_3:
                                 # storage as part of a flow - add a date record
-                                coll_map[coll]["date"] = dt.datetime.today().strftime("%d-%m-%Y") 
+                                record["date"] = dt.datetime.today().strftime("%d-%m-%Y") 
 
-                            coll_map[coll]["user_id"] = sender_id
+                            record["user_id"] = sender_id
 
-                            state_coll = db[coll]
+                            data_coll = db[coll]
 
-                            state_coll.insert(record)
+                            data_coll.insert(record)
 
                         # detect whether the node target is message list
                         target_is_ml = info["target"] in state_map
@@ -210,7 +206,7 @@ def webhook():
 
                     storage = data["list"][curr_idx]["storage"]
 
-                    # we assume that collections and attributes are defined with camelCase
+                    # we assume that collections and attributes are written as camelCase
                     storage = "_".join(storage.split("."))
 
                     # store the response 
@@ -249,18 +245,18 @@ def webhook():
 # 4 tabs are known based on webhook_logic layout
 postback_logic = \
 """
-                if message_payload == "~payload~":
-                    state_coll.update({"user_id": sender_id}, {
-                        "$set": {
-                            "~target~.switch": True
-                        }
-                    }, upsert=False)
+                    if message_payload == "~payload~":
+                        state_coll.update({"user_id": sender_id}, {
+                            "$set": {
+                                "~target~.switch": True
+                            }
+                        }, upsert=False)
 
-                    ~data_insertion~
+                        ~data_insertion~
 
-                    send_message(sender_id, content_data["~target_content~"])
+                        send_message(sender_id, content_data["~target_content~"])
 
-                    continue
+                        continue
 """
 
 content_base = \
@@ -274,20 +270,20 @@ content_data = {
 
 carousel_content_base = \
 """
-"~name~" : {
-    "attachment": {
-        "type": "template",
-        "payload": {
-            "template_type": "generic",
-            "elements": ~carousel_elements~
+    "~name~" : {
+        "attachment": {
+            "type": "template",
+            "payload": {
+                "template_type": "generic",
+                "elements": ~carousel_elements~
+            }
         }
     }
-}
 """
 
 message_content_base = \
 """
-"~name~" : {
-    "text": "~message_text~"
-}
+    "~name~" : {
+        "text": "~message_text~"
+    }
 """
