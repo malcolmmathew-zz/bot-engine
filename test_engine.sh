@@ -7,3 +7,4 @@ echo "USER ID: ${user_id}"
 
 # change working directory
 cd ./output/$user_id
+ls
