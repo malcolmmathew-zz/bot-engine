@@ -371,13 +371,13 @@ requests
 
         self.database_config()
 
-        print "Content creation: %s" % self.content_creation()
+        self.content_creation()
 
-        print "Appliction logic creation: %s" % self.logic_creation()
+        self.logic_creation()
 
-        print "Procfile creation: %s" % self.procfile_creation()
+        self.procfile_creation()
 
-        print "Requirements.txt creation: %s" % self.requirements_creation()
+        self.requirements_creation()
 
         return self.user_id
 
