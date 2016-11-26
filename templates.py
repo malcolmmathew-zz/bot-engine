@@ -115,6 +115,11 @@ def webhook():
                             switch_node = node
                             data = info
 
+                    if switch_node is None:
+                        # detected first time interaction between user and application
+                        send_message(sender_id, content_data["greeting"])
+                        continue
+
                     # we've reached the end of a message list
                     flag_1 = info["index"] >= info["length"]
 
