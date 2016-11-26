@@ -73,6 +73,7 @@
 """
 import json
 import os
+import shutil
 
 from pymongo import MongoClient
 
@@ -115,6 +116,16 @@ class Engine:
         self.pat = kwargs["page_access_token"]
         self.vt = kwargs["verification_token"]
         self.mongo_host = kwargs["mongo_host"]
+
+        # output file config
+        self.output_dir = "output/%s" % self.user_id
+
+        if os.path.exists(self.output_dir):
+            # remove existing user directory
+            shutil.rmtree(self.output_dir)
+        
+        # make user directory
+        os.makedirs(self.output_dir)
 
         # database config
         self.client = MongoClient(self.mongo_host)
@@ -252,7 +263,7 @@ state_coll.update({"user_id": sender_id}, {
             messages=",\n".join(message_list_container))
 
         # write content to file
-        with open("content.py", "w") as file:
+        with open("%s/content.py" % self.output_dir, "w") as file:
             file.write(content)
 
         return True
@@ -292,7 +303,7 @@ state_map = ~state_map_content~
 """
 
         # write state map to file
-        with open("state.py", "w") as file:
+        with open("%s/state.py" % self.output_dir, "w") as file:
             file.write(format_string(file_content, state_map_content=state_map))
 
         return state_map
@@ -310,7 +321,7 @@ state_map = ~state_map_content~
             verify_token=self.vt, webhook_logic=self.webhook_logic())
 
         # write content t ofile
-        with open("app.py", "w") as file:
+        with open("%s/app.py" % self.output_dir, "w") as file:
             file.write(al)
 
         return True
@@ -326,7 +337,7 @@ web: gunicorn app:app --log-file -
 """
     
         # write procfile
-        with open("Procfile", "w") as file:
+        with open("%s/Procfile" % self.output_dir, "w") as file:
             file.write(content)
 
         return True
@@ -345,7 +356,7 @@ requests
 """
     
         # write requirements
-        with open("requirements.txt", "w") as file:
+        with open("%s/requirements.txt" % self.output_dir, "w") as file:
             file.write(content)
 
         return True
@@ -368,7 +379,7 @@ requests
 
         self.requirements_creation()
 
-        return True
+        return self.user_id
 
 
 if __name__ == '__main__':
