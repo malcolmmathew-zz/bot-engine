@@ -57,12 +57,11 @@ variables and pass their values as template strings.
     - this would have to be a different message type
     - right now message lists are either pure information or questions
 
-- should move engine output files to a separate directory
-    - create sub-directories based on user_id (local database lookup)
-
 - last stage of changes
     - need to run engine and read over the output code
     - need to figure out how to deploy individual bot instances and how to refresh an instance if it already exists (i.e. how to make changes and have them persist)
+    - force engine users to specify a default carousel => this is the message that is sent when all nodes are 'switched off'
+        - this can probably be improved with a greeting message 
 
 - database details
     - tried mongolab => smooth setup but we're restricted to a single database
