@@ -1,4 +1,7 @@
 *.pyc
 
+# hidden configuration files
+evars.sh
+
 # engine output files
 output
