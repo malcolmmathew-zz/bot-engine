@@ -316,6 +316,41 @@ state_map = ~state_map_content~
         return True
 
 
+    def procfile_creation(self):
+        """
+            Procfile required for Heroku deployment.
+        """
+        content = \
+"""
+web: gunicorn app:app --log-file -
+"""
+    
+        # write procfile
+        with open("Procfile", "w") as file:
+            file.write(content)
+
+        return True
+
+
+    def requirements_creation(self):
+        """
+            Python-specific requirements file. Contains database, server, and
+            application-specific libraries.
+        """
+        content = \
+"""
+pymongo
+Flask
+requests
+"""
+    
+        # write requirements
+        with open("requirements.txt", "w") as file:
+            file.write(content)
+
+        return True
+
+
     def process(self):
         """
             Primary method to handle engine process. Calls member function in
@@ -328,6 +363,10 @@ state_map = ~state_map_content~
         self.content_creation()
 
         self.logic_creation()
+
+        self.procfile_creation()
+
+        self.requirements_creation()
 
         return True
 
