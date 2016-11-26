@@ -371,13 +371,13 @@ requests
 
         self.database_config()
 
-        self.content_creation()
+        print "Content creation: %s" % self.content_creation()
 
-        self.logic_creation()
+        print "Appliction logic creation: %s" % self.logic_creation()
 
-        self.procfile_creation()
+        print "Procfile creation: %s" % self.procfile_creation()
 
-        self.requirements_creation()
+        print "Requirements.txt creation: %s" % self.requirements_creation()
 
         return self.user_id
 
@@ -388,7 +388,6 @@ if __name__ == '__main__':
         "page_access_token": os.environ["PAGE_ACCESS_TOKEN"],
         "verification_token": os.environ["VERIFICATION_TOKEN"],
         "database_configuration" : {
-            "mongo_host" : "<mongo_host_ip>",
             "collections" : ["user", "transactions"]
         },
         "bot_configuration": {
@@ -447,6 +446,6 @@ if __name__ == '__main__':
         Engine("sunnithan95", json_data, 
                page_access_token=test_data["page_access_token"],
                verification_token=test_data["verification_token"],
-               mongo_host=test_data["database_configuration"]["mongo_host"])
+               mongo_host=os.environ["MONGO_HOST"])
 
     print bot_engine.process()
