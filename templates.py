@@ -118,6 +118,7 @@ def webhook():
                     if switch_node is None:
                         # detected first time interaction between user and application
                         send_message(sender_id, content_data["greeting"])
+                        send_message(sender_id, content_data["default"])
                         continue
 
                     # we've reached the end of a message list
