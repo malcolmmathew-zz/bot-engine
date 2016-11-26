@@ -1,9 +1,4 @@
 *.pyc
 
 # engine output files
-app.py
-content.py
-test.py
-state.py
-requirements.txt
-Procfile
+output
