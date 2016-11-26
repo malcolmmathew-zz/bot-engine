@@ -305,7 +305,7 @@ state_map = ~state_map_content~
         """
 
         al = format_string(
-            tl.base_application_logic, mongo_host=self.mongo_host, 
+            tl.base_application_logic, mongo_host=self.mongo_host,
             user_id=self.user_id, page_access_token=self.pat, 
             verify_token=self.vt, webhook_logic=self.webhook_logic())
 
