@@ -258,6 +258,12 @@ state_coll.update({"user_id": sender_id}, {
                     format_string(tl.message_content_base, name=title,
                                   message_text=msg["message"]))
 
+        # create a default first-time greeting message
+        if "greeting" not in map(lambda x: x[0], self.message_lists):
+            message_list_container.append(
+                format_string(tl.message_content_base, name="greeting",
+                              message_text="Hello, nice to meet you!"))
+            
         content = format_string(
             tl.content_base, carousels=",\n".join(carousel_container),
             messages=",\n".join(message_list_container))
@@ -433,6 +439,8 @@ if __name__ == '__main__':
                         "message": "How much did you earn today?",
                         "expected_input": "float",
                         "storage": "transactions.amount"
+                    }, {
+                        "message": "Thanks. Have a great day!"
                     }
                 ],
                 "target": "default"
