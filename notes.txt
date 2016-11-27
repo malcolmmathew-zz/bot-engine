@@ -77,16 +77,18 @@
         - specify Application Name, Contact Email, and Category (e.g. communication)
         - enter captcha (indicator that this would have to be a manual setup)
         - within 'Product Setup', click 'Get Started' next to 'Messenger' (will be redirected to the Messenger Product page)
-        - under 'Token Generation', select your previously created page and keep track of the outputted "Page Access Token"
+        - under 'Token Generation', select your previously created page
+        - enable all mandatory permissions, in case prompt appears
+        - add the outputted "Page Access Token" to clipboard
     - Engine Configuration
         - add the newly retrieved Page Access Token to the bot configuration JSON
-        - specify a custom verification token, and store it for later use
+        - specify a custom verification token, and store it for later use (cannot include commas)
         - run engine.py, passing the JSON configuration file and retrieve outputted application url
     - Facebook Application Update
-        - navigate to "New Page Subscription" under "Product Setup => Messenger"
+        - click "Setup Webhooks" within the 'Webhooks' section
         - specify the previously outputted application url under "Callback URL"
         - specify the custom verification token under "Verify Token"
-        - click the ["messages", "message_deliveries", "messaging_optins", "messaging_postbacks"] options under "Subscription Fields"
-        - under "Webhooks", select your previously created page to subscribe to your newly created webhook
+        - click the ["messages", "message_deliveries", "messaging_optins", "messaging_postbacks", "message_reads"] options under "Subscription Fields"
+        - under "Webhooks", choose your previously created page and click 'Subscribe' to subscribe to your newly created webhook
     - Bot Communication
         - navigate to your page on Facebook and click "Message" to begin communicating with your bot
