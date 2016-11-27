@@ -74,16 +74,16 @@ def webhook():
                     state_map["user_id"] = sender_id
                     state_coll.insert(state_map)
 
-                if messaging_event["postback"]:
+                if messaging_event.get("postback"):
                     # detect previous state to know if flow has been instantiated
-                    if state_coll.find_one({"user": sender_id})["current_type"] == "message_list":
-                        state_coll.update({"user": sender_id}, {
+                    if state_coll.find_one({"user_id": sender_id})["current_type"] == "message_list":
+                        state_coll.update({"user_id": sender_id}, {
                             "$set": {
                                 "flow_instantiated": True
                             }
                         }, upsert=False)
 
-                    state_coll.update({"user": sender_id}, {
+                    state_coll.update({"user_id": sender_id}, {
                         "$set": {
                             "current_type": "postback"
                         }
@@ -94,12 +94,12 @@ def webhook():
 
                     ~postback_control_flow~
 
-                elif messaging_event["message"]:
+                elif messaging_event.get("message"):
                     # user submitted a message response (text)
                     message = messaging_event["message"]["text"]
 
                     # set the current state to message list
-                    state_coll.update({"user": sender_id}, {
+                    state_coll.update({"user_id": sender_id}, {
                         "$set": {
                             "current_type": "message_list"
                         }
@@ -110,21 +110,33 @@ def webhook():
 
                     switch_node = None
 
-                    data = None
+                    info = None
 
-                    for node, info in state_map.iteritems():
-                        if "switch" in node and node["switch"]:
+                    ignore_fields = ["_id", "user_id", "current_type", "data", 
+                                     "flow_instantiated"]
+
+                    for node, node_info in state_map.iteritems():
+                        # nodes to ignore in state map
+                        if node in ignore_fields:
+                            continue
+
+                        if "switch" in node_info and node_info["switch"]:
                             switch_node = node
-                            data = info
+                            info = node_info
 
                     if switch_node is None:
                         # detected first time interaction between user and application
+                        state_coll.update({"user_id": sender_id}, {
+                            "$set": {
+                                "current_type": "message_list"
+                            }
+                        }, upsert=False)
                         send_message(sender_id, content_data["greeting"])
                         send_message(sender_id, content_data["default"])
                         continue
 
                     # we've reached the end of a message list
-                    flag_1 = info["index"] >= info["length"]
+                    flag_1 = info["index"] >= (info["length"] - 1)
 
                     flag_2 = info["length"] == 1
 
@@ -156,17 +168,15 @@ def webhook():
                         # data insertion logic
                         coll_map = {}
 
-                        # if lone message and part of flow - add to state data before insertion
-                        if flag_2 and flag_3:
-                            # check if message needs to be stored
-                            if "storage" in info["list"][0]:
-                                storage_det = "_".join(info["list"][0]["storage"].split("."))
+                        # check if message needs to be stored
+                        if "storage" in info["list"][info["index"]]:
+                            storage_det = "_".join(info["list"][info["index"]]["storage"].split("."))
 
-                                state_coll.update({"user_id": sender_id}, {
-                                    "$set": {
-                                        "data.%s" % storage_det: message
-                                    }
-                                }, upsert=False)
+                            state_coll.update({"user_id": sender_id}, {
+                                "$set": {
+                                    "data.%s" % storage_det: message
+                                }
+                            }, upsert=False)
 
                         data = state_coll.find_one({"user_id": sender_id})["data"]
 
@@ -210,9 +220,9 @@ def webhook():
 
                         continue
 
-                    curr_idx = data["index"]
+                    curr_idx = info["index"]
 
-                    storage = data["list"][curr_idx]["storage"]
+                    storage = info["list"][curr_idx]["storage"]
 
                     # we assume that collections and attributes are written as camelCase
                     storage = "_".join(storage.split("."))
@@ -225,15 +235,11 @@ def webhook():
                     }, upsert=False)
 
                     # increment the list index
-                    state_coll.find_one({"user_id": sender_id}, {
+                    state_coll.update({"user_id": sender_id}, {
                         "$set": {
                             "%s.index" % switch_node: curr_idx + 1
                         }
                     }, upsert=False)
-
-                    if (curr_idx + 1) >= len(data["list"]):
-                        # end of message list
-                        continue
 
                     target_content = "%s_%s" % (switch_node, curr_idx+1)
 
@@ -241,13 +247,14 @@ def webhook():
 
                     continue
 
-                elif messaging_event["delivery"]:
+                elif messaging_event.get("delivery"):
                     # confirm delivery - currently not supported
                     pass
 
-                elif messaging_event["optin"]:
+                elif messaging_event.get("optin"):
                     # confirm optin - currently not supported
                     pass
+    return "ok", 200
 """
 
 # 4 tabs are known based on webhook_logic layout
