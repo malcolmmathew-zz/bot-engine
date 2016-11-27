@@ -153,9 +153,7 @@ class Engine:
         """
         db_config = self.database_configuration
 
-        db_config.append("state")
-
-        for coll in db_config["collections"]:
+        for coll in db_config["collections"] + ["state"]:
             self.db[coll].insert({"record": "placecholder"})
 
 
@@ -263,7 +261,7 @@ state_coll.update({"user_id": sender_id}, {
             message_list_container.append(
                 format_string(tl.message_content_base, name="greeting",
                               message_text="Hello, nice to meet you!"))
-            
+
         content = format_string(
             tl.content_base, carousels=",\n".join(carousel_container),
             messages=",\n".join(message_list_container))
@@ -451,7 +449,7 @@ if __name__ == '__main__':
     json_data = json.dumps(test_data)
 
     bot_engine = \
-        Engine("sunnithan95", json_data, 
+        Engine("botengine", json_data, 
                page_access_token=test_data["page_access_token"],
                verification_token=test_data["verification_token"],
                mongo_host=os.environ["MONGO_HOST"])
