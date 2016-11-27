@@ -74,6 +74,13 @@ variables and pass their values as template strings.
         - re-deploy application with correct database configuration
         - dply allows server creation after the first one expires; server remains ephemeral => data will not persist from one server to the other
         - no automated way to create servers using dply but I can scp bash scripts in bulk to setup the database environment
+    - dply seems to be unresponsive so I'm going to try and setup mongo on my local machine (allowing inbound from all IPs)
+        - mongo networking prevents instantiating a local mongo instance and then accessing remotely (via IP)
+    - using mLab we're restricted to creating a single user (botengine => will be specified as user id)
+        - we can add a helper script to refresh the databse prior to every engine run (FOR TESTING PURPOSES ONLY)
+        - we technically shouldn't need to create a clean database during ever engine iteration as the user may want existing data to persist
+        - FUTURE WORK ^
+    - slight time delay as a result of the database connection (minimal)
 
 - bot creation workflow
     - Facebook Page Creation
