@@ -1,24 +1,7 @@
-- how do we correctly store chat-user responses; do we ask the engine-user to define storage elements (e.g. db collections, objects)?
-
-- it makes most sense for message responses (i.e. user response to an emitted message from a list) to be stored in a database
-    - the exception to this would be binary answers used to handle control flow
-    - still haven't decided whether or not to store carousel responses 
-
-- we need an overarching unique identifier for a bot-user => used when updating record attributes
-
-- we want keys/fields in JSON to be verbose
-
-- I'm (Sid) aiming to keep the deployed application as thin as possible with a minimal reliance on environment variables. Instead we hard-code said
-variables and pass their values as template strings. 
-
 - TODO: allow image url specifications for carousel options
 
 - current iteration supports single buttons for carousel
     - added buttons is a straight forward change on the JSON end
-
-- TODO: proper text templating library; simple python string formatting doesn't work if dictionaries are being written
-    - possibly write a string templating wrapper function
-    - DONE
 
 - (possible constraint) postbacks only trigger message lists; message lists can trigger message lists and postbacks
 

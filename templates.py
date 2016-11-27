@@ -9,7 +9,7 @@ import datetime as dt
 
 import requests
 from pymongo import MongoClient
-from flask import Flask
+from flask import Flask, jsonify, request
 
 from content import *
 import state as st
@@ -24,7 +24,7 @@ state_coll = db["state"]
 # message sending helper
 def send_message(sender_id, message_data):
     params = {
-        "access_token": "~page_access_token~"
+        "access_token": os.environ["PAGE_ACCESS_TOKEN"]
     }
 
     headers = {
@@ -45,7 +45,7 @@ def send_message(sender_id, message_data):
 @app.route("/", methods=["GET"])
 def verify():
     if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
-        if not request.args.get("hub.verify_token") == "~verify_token~":
+        if not request.args.get("hub.verify_token") == os.environ["VERIFY_TOKEN"]:
             return "Verificiation token mismatch", 403
         return request.args["hub.challenge"], 200
 
@@ -61,6 +61,8 @@ if __name__ == "__main__":
 webhook_logic = \
 """
 def webhook():
+    data = request.get_json()
+
     if data["object"] == "page":
         for entry in data["entry"]:
             for messaging_event in entry["messaging"]:

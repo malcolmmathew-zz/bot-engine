@@ -357,6 +357,7 @@ web: gunicorn app:app --log-file -
 pymongo
 Flask
 requests
+gunicorn
 """
     
         # write requirements
@@ -383,7 +384,8 @@ requests
 
         self.requirements_creation()
 
-        return self.user_id
+        # return a string containing user_id, page access token, verify token
+        return "%s,%s,%s" % (self.user_id, self.pat, self.vt)
 
 
 if __name__ == '__main__':
