@@ -3,5 +3,8 @@
 # hidden configuration files
 evars.sh
 
+# dply keys
+*.pem*
+
 # engine output files
 output
