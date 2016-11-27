@@ -297,7 +297,7 @@ state_coll.update({"user_id": sender_id}, {
 
         state_map["flow_instantiated"] = False
 
-        state_map["previous_type"] = ""
+        state_map["current_type"] = ""
 
         state_map["data"] = {}
 
