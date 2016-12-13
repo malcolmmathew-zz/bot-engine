@@ -418,10 +418,12 @@ if __name__ == '__main__':
                         "expected_input": "integer",
                         "storage": "user.age"
                     }, {
-                        "message": "Thanks. Have a great day!"
+                        "message": "Please enter your birth date.",
+                        "expected_input": "date",
+                        "storage": "user.birth_date"
                     }
                 ],
-                "target": "placeholder_node"
+                "target": "default"
             },
             "help_message": {
                 "type": "message_list",
