@@ -1,0 +1,94 @@
+- TODO: allow image url specifications for carousel options
+
+- current iteration supports single buttons for carousel
+    - added buttons is a straight forward change on the JSON end
+
+- (possible constraint) postbacks only trigger message lists; message lists can trigger message lists and postbacks
+
+- each user has a unique record in the state collection
+    - we can use indices to keep track of when and where responses need to be stored for message lists
+    - we need switches to know which control flow branch to follow after a response (e.g. postback target or message_list target)
+
+- how do we store intermediary decisions (e.g. carousel postback selections) such that we can use them for logging in the future
+    - can force users to add a "data" attribute to carousel options
+    - create a global "data" object which we insert into mongo at the end of a "flow" => easiest way to avoid updating previous transactions
+    - (caveat) how do we denote the start and the end of a "flow"
+    - based on the bot we built, a carousel postback following a message response would instantiate a flow; a message target following a carousel
+    postback would terminate a flow
+    - all message lists are considered flows; so we know storage for message lists should take place when idx == len(message_list)-1
+        - currently using the state's data object to store message list information as well
+
+- storage logic
+    - we perform insertions for each and every user response
+        - creates disjoint records, and doesn't allow for record references and groupings in the future
+        - (e.g. we want user information to be stored together but we create separate records)
+    - for every storage field we ask the user to specify ID_FIELDS
+        - ID_FIELDS correspond to a set of collection attributes used for UPDATES
+    - we force users to specify primary keys for collections in the database configuration
+        - we predefine primary keys that are relevant to chatbots and logging (e.g. user_id, current_date)
+    - we assume that users are dilligent in grouping recorsd together
+        - e.g. all or groups of a single message list's responses are stored in the same collection
+        - we programmatically group records in the 'data' map based on the collection;
+        - we add a 'user_id' field for all groups
+        - we add a 'date' field for all groups being inserted at the end of a flow
+        - LEANING TOWARDS THIS
+
+- for now we assume that users are dilligent in the types of responses that they provide
+    - we only use the "expected_input" field to type cast sender responses before inserting into the database
+
+- haven't thought about balances (high-level: aggregations)
+    - this would have to be a different message type
+    - right now message lists are either pure information or questions
+
+- last stage of changes
+    - need to run engine and read over the output code
+    - need to figure out how to deploy individual bot instances and how to refresh an instance if it already exists (i.e. how to make changes and have them persist)
+    - force engine users to specify a default carousel => this is the message that is sent when all nodes are 'switched off'
+        - this can probably be improved with a greeting message 
+
+- database details
+    - tried mongolab => smooth setup but we're restricted to a single database
+    - can switch between databases but can't view collections or read/write
+    - don't think we can overlook the single database limitation
+    - might quickly work on setting up a single node on an ec2 instance
+        - will have to make use of AWS free tier
+    - might use dply.co for temporary database once I know I can get the app deployed to heroku (without a database connection)
+        - setup docker and a mongo database on dply (assuming that traffic will be allowed on the mapped mongo port)
+        - re-deploy application with correct database configuration
+        - dply allows server creation after the first one expires; server remains ephemeral => data will not persist from one server to the other
+        - no automated way to create servers using dply but I can scp bash scripts in bulk to setup the database environment
+    - dply seems to be unresponsive so I'm going to try and setup mongo on my local machine (allowing inbound from all IPs)
+        - mongo networking prevents instantiating a local mongo instance and then accessing remotely (via IP)
+    - using mLab we're restricted to creating a single user (botengine => will be specified as user id)
+        - we can add a helper script to refresh the databse prior to every engine run (FOR TESTING PURPOSES ONLY)
+        - we technically shouldn't need to create a clean database during ever engine iteration as the user may want existing data to persist
+        - FUTURE WORK ^
+    - slight time delay as a result of the database connection (minimal)
+
+- bot creation workflow
+    - Facebook Page Creation
+        - https://www.facebook.com/pages/create/
+        - choose an appropriate category corresponding to your page
+            - for testing use 'Cause or Community'
+        - go through setup process if required; alternatively skip through the setup
+    - Facebook Application Creation
+        - navigate to Facebook Developer Quickstart page: https://developers.facebook.com/quickstarts/?platform=web 
+        - click "Skip and Create Application ID"
+        - specify Application Name, Contact Email, and Category (e.g. communication)
+        - enter captcha (indicator that this would have to be a manual setup)
+        - within 'Product Setup', click 'Get Started' next to 'Messenger' (will be redirected to the Messenger Product page)
+        - under 'Token Generation', select your previously created page
+        - enable all mandatory permissions, in case prompt appears
+        - add the outputted "Page Access Token" to clipboard
+    - Engine Configuration
+        - add the newly retrieved Page Access Token to the bot configuration JSON
+        - specify a custom verification token, and store it for later use (cannot include commas)
+        - run engine.py, passing the JSON configuration file and retrieve outputted application url
+    - Facebook Application Update
+        - click "Setup Webhooks" within the 'Webhooks' section
+        - specify the previously outputted application url under "Callback URL"
+        - specify the custom verification token under "Verify Token"
+        - click the ["messages", "message_deliveries", "messaging_optins", "messaging_postbacks", "message_reads"] options under "Subscription Fields"
+        - under "Webhooks", choose your previously created page and click 'Subscribe' to subscribe to your newly created webhook
+    - Bot Communication
+        - navigate to your page on Facebook and click "Message" to begin communicating with your bot
