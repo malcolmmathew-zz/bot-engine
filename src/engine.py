@@ -407,6 +407,10 @@ if __name__ == '__main__':
                     {
                         "name": "help",
                         "target": "help_message"
+                    },
+                    {
+                        "name": "onboard",
+                        "target": "onboarding"
                     }
                 ]
             },
