@@ -2,7 +2,7 @@
 source evars.sh
 
 # clean database - only for testing
-python database_setup.py
+python database_utils/database_setup.py
 
 # run engine and retrieve user id
 engine_output="$(python engine.py)"
@@ -15,11 +15,11 @@ echo "PAGE ACCESS TOKEN: ${pat}"
 echo "VERIFY TOKEN: ${vt}"
 
 # copy output directory to deployment sandbox
-rm -rf ../bot-apps/$user_id
-cp -r ./output/$user_id ../bot-apps/$user_id
+rm -rf ../../bot-apps/$user_id
+cp -r ./output/$user_id ../../bot-apps/$user_id
 
 # change working directory
-cd ../bot-apps/$user_id
+cd ../../bot-apps/$user_id
 git init
 
 # application deployment
