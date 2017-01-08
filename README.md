@@ -41,11 +41,15 @@ Thinking that it would be useful and cost-efficient for small businesses and cha
 
 #### Engine Configuration
 
-1. Modify evars.sh to include the newly retrieved Page Access Token.
+1. Modify the bot-config.json file with your desired configuration. The existing content should be used as a template/example. Please note that the configuration file must follow valid JSON format.
 
-2. Specify a custom Verification Token in evars.sh.
+2. Modify evars.sh to include the newly retrieved 'Page Access Token'.
 
-3. Run the run.sh bash script and retrieve the outputted web url. This bash script will wipe all collections in the database (dev + testing feature which will be removed in production).
+3. Specify a custom 'Verification Token' in evars.sh.
+
+4. In order for the engine to work, it must connect to a valid mongo instance. Please email suunnith@uwaterloo.ca to retrieve the database url and appropriate credentials. Once the url is obtained, specify the 'Mongo Host' in evars.sh.
+
+5. Run the run.sh bash script and retrieve the outputted web url. This bash script will wipe all collections in the database (dev + testing feature which will be removed in production).
 
 #### Facebook Application Update
 

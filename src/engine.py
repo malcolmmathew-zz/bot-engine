@@ -389,77 +389,17 @@ gunicorn
 
 
 if __name__ == '__main__':
-    # create dict, convert to JSON and then parse
-    test_data = {
-        "page_access_token": os.environ["PAGE_ACCESS_TOKEN"],
-        "verification_token": os.environ["VERIFICATION_TOKEN"],
-        "database_configuration" : {
-            "collections" : ["user", "transactions"]
-        },
-        "bot_configuration": {
-            "default": {
-                "type": "carousel",
-                "options": [
-                    {
-                        "name": "log_income",
-                        "target": "income_amount_prompt"
-                    },
-                    {
-                        "name": "help",
-                        "target": "help_message"
-                    },
-                    {
-                        "name": "onboard",
-                        "target": "onboarding"
-                    }
-                ]
-            },
-            "onboarding": {
-                "type": "message_list",
-                "messages": [
-                    {
-                        "message": "Please enter your age.",
-                        "expected_input": "integer",
-                        "storage": "user.age"
-                    }, {
-                        "message": "Please enter your birth date.",
-                        "expected_input": "date",
-                        "storage": "user.birth_date"
-                    }
-                ],
-                "target": "default"
-            },
-            "help_message": {
-                "type": "message_list",
-                "messages": [
-                    {
-                        "message": "Generic help message."
-                    }
-                ],
-                "target": "default"
-            },
-            "income_amount_prompt": {
-                "type": "message_list",
-                "messages": [
-                    {
-                        "message": "How much did you earn today?",
-                        "expected_input": "float",
-                        "storage": "transactions.amount"
-                    }, {
-                        "message": "Thanks. Have a great day!"
-                    }
-                ],
-                "target": "default"
-            }
-        }
-    }
+    # read configuration directly from file - assume no format/syntax errors
+    with open("bot-config.json") as configuration_file:
+        json_data = json.load(configuration_file)
 
-    json_data = json.dumps(test_data)
+        # in the main method we reconvert to JSON string for sanity
+        json_string = json.dumps(json_data)
 
-    bot_engine = \
-        Engine("botengine", json_data, 
-               page_access_token=test_data["page_access_token"],
-               verification_token=test_data["verification_token"],
-               mongo_host=os.environ["MONGO_HOST"])
+        bot_engine = \
+            Engine("botengine", json_string, 
+                   page_access_token=os.environ["PAGE_ACCESS_TOKEN"],
+                   verification_token=os.environ["VERIFICATION_TOKEN"],
+                   mongo_host=os.environ["MONGO_HOST"])
 
-    print bot_engine.process()
+        print bot_engine.process()
