@@ -1,0 +1,65 @@
+{
+    "database_configuration": {
+        "collections": ["user", "transactions"]
+    },
+    "bot_configuration" : {
+        "default": {
+            "type": "carousel",
+            "options": [
+                {
+                    "name": "log_income",
+                    "target": "income_amount_prompt"
+                },
+                {
+                    "name": "help",
+                    "target": "help_message"
+                },
+                {
+                    "name": "onboard",
+                    "target": "onboarding"
+                }
+            ]
+        },
+        "onboarding": {
+            "type": "message_list",
+            "messages": [
+                {
+                    "message": "Please enter your age.",
+                    "expected_input": "integer",
+                    "storage": "user.age"
+                },
+                {
+                    "message": "Please enter your birth date.",
+                    "expected_input": "date",
+                    "storage": "user.birth_date"
+                },
+                {
+                    "message": "Thank you for completing the onboarding!"
+                }
+            ],
+            "target": "default"
+        },
+        "help_message": {
+            "type": "message_list",
+            "messages": [
+                {
+                    "message": "Please send your questions to suunnith@uwaterloo.ca."
+                }
+            ],
+            "target": "default"
+        },
+        "income_amount_prompt": {
+            "type": "message_list",
+            "messages": [
+                {
+                    "message": "How much did you earn today?",
+                    "expected_input": "float",
+                    "storage": "transactions.income_amount"
+                }, {
+                    "message": "Thanks. Happy logging!"
+                }
+            ],
+            "target": "default"
+        }
+    }
+}
