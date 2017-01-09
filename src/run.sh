@@ -15,8 +15,10 @@ echo "PAGE ACCESS TOKEN: ${pat}"
 echo "VERIFY TOKEN: ${vt}"
 
 # copy output directory to deployment sandbox
-rm -rf ../../bot-apps/$user_id
-cp -r ./output/$user_id ../../bot-apps/$user_id
+rm -rf ~/bot-sandbox/bot-apps/$user_id
+mkdir ~/bot-sandbox
+mkdir ~/bot-sandbox/bot-apps
+cp -r ./output/$user_id ~/bot-sandbox/bot-apps/$user_id
 
 # change working directory
 cd ../../bot-apps/$user_id
