@@ -7,13 +7,42 @@ While developing a Messenger bot for a charity in the Greater Toronto Area, we r
 
 Thinking that it would be useful and cost-efficient for small businesses and charities to use a black box which dynamically generated Messenger bots, we began working towards developing a tool/engine/API for bot creation through simple JSON specification.
 
+## Current State
+
+The engine and associated process currently exists as a set of bash scripts and Python modules which can be configured (via parameters) to generate a Facebook Messenger bot. Due to cost limitations, there exists a single database (and collection) for data storage. 
+
+The next iteration of this project would include packaging the engine and template modules into a Flask application server, and deploying said server on a remote machine (e.g. thin EC2 instance, Amazon Lightsail). The deployed server would expose a simple API allowing JSON passing, while generating subprocesses for handling the generated files and deploying the bot to Heroku.
+
+## Prerequisites
+In order to use the bot-engine, the following machine dependencies are required.
+
+1. Valid Python distribution with pip. It is recommended that a virtual environment is created to box the python dependencies.
+
+2. Heroku installed with the login credentials specified. You will need space for a new application to be deployed to Heroku.
+
+```bash
+# log into Heroku 
+heroku login
+
+# check existing apps
+heroku apps
+
+# destroy a running application
+heroku apps:destroy --app <application_name> --confirm <application_name>
+
+# view the logs for a running application
+heroku logs --app <application_name>
+```
+
+3. Verified Facebook Developer account.
+
 ## Bot Creation Workflow
 
 #### Repository
 
 1. Clone this repository to your local or remote machine. Navigate to the root directory of the repository.
 
-2. Install the dependencies through the following command (assuming you have a working python distribution).
+2. Install the dependencies through the following command.
 
 ```bash
 pip install -r requirements.txt
@@ -75,14 +104,14 @@ bash run.sh
 
 5. Click the *messages*, *message_deliveries*, *messaging_optins*, *messaging_postbacks*, and *message_reads* options under 'Subscription Fields'.
 
-6. under *Webhooks*, choose your previously created page and click *Subscribe* such that the page subscribes to your newly created webhook.
+6. Under *Webhooks*, choose your previously created page and click *Subscribe* such that the page subscribes to your newly created webhook.
 
 #### Bot Communication
 
 1. Navigate to your page on Facebook and click *Message* to begin communicating with your bot.
 
-## Current State
+**Note:** At this point your deployed application will only communicate with you through your Facebook page, as it is in a development stage. In order to deploy this application to the public you must follow these instructions.
 
-The engine and associated process currently exists as a set of bash scripts and Python modules which can be configured (via parameters) to generate a Facebook Messenger bot. Due to cost limitations, there exists a single database (and collection) for data storage. 
+2. Navigate to *App Review* within your application on the Facebook Developers page.
 
-The next iteration of this project would include packaging the engine and template modules into a Flask application server, and deploying said server on a remote machine (e.g. thin EC2 instance, Amazon Lightsail). The deployed server would expose a simple API allowing JSON passing, while generating subprocesses for handling the generated files and deploying the bot to Heroku.
+3. Turn the switch on under 'Make <application_name> public?'.
