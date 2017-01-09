@@ -18,7 +18,9 @@ In order to use the bot-engine, the following machine dependencies are required.
 
 1. Valid Python distribution with pip. It is recommended that a virtual environment is created to box the python dependencies.
 
-2. Heroku installed with the login credentials specified. You will need space for a new application to be deployed to Heroku.
+2. Verified Facebook Developer account.
+
+3. Heroku installed with the login credentials specified. You will need space for a new application to be deployed to Heroku.
 
 ```bash
 # log into Heroku 
@@ -33,8 +35,6 @@ heroku apps:destroy --app <application_name> --confirm <application_name>
 # view the logs for a running application
 heroku logs --app <application_name>
 ```
-
-3. Verified Facebook Developer account.
 
 ## Bot Creation Workflow
 
