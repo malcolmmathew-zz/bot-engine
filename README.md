@@ -11,7 +11,13 @@ Thinking that it would be useful and cost-efficient for small businesses and cha
 
 #### Repository
 
-1. Clone this repository to your local or remote machine.
+1. Clone this repository to your local or remote machine. Navigate to the root directory of the repository.
+
+2. Install the dependencies through the following command (assuming you have a working python distribution).
+
+```bash
+pip install -r requirements.txt
+```
 
 #### Facebook Page Creation
 
@@ -50,6 +56,10 @@ Thinking that it would be useful and cost-efficient for small businesses and cha
 4. In order for the engine to work, it must connect to a valid mongo instance. Please email suunnith@uwaterloo.ca to retrieve the database url and appropriate credentials. Once the url is obtained, specify the 'Mongo Host' in evars.sh.
 
 5. Run the run.sh bash script and retrieve the outputted web url. This bash script will wipe all collections in the database (dev + testing feature which will be removed in production).
+
+```bash
+bash run.sh
+```
 
 #### Facebook Application Update
 
