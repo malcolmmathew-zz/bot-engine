@@ -58,6 +58,8 @@ pip install -r requirements.txt
 5. Run the run.sh bash script and retrieve the outputted web url. This bash script will wipe all collections in the database (dev + testing feature which will be removed in production).
 
 ```bash
+cd src
+
 bash run.sh
 ```
 
