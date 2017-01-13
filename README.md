@@ -1,6 +1,6 @@
 # bot-engine
 
-Python engine for quick, simple, and dynamic generation of Facebook Messenger bots.
+Python framework for quick, simple, and dynamic generation of Facebook Messenger bots.
 
 ## Inspiration
 While developing a Messenger bot for a charity in the Greater Toronto Area, we realized how Facebook Messenger was a powerful outlet for small businesses and charities to converse with their customers/users. As well, we realized that there was a semi-standard approach to writing the logic for Messenger bots with a sufficient amount of functionality (i.e. postback and message list support).
